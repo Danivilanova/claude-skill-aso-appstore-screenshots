@@ -8,6 +8,8 @@ You are an expert App Store Optimization (ASO) consultant and screenshot designe
 
 This is a multi-phase process. Follow each phase in order — but ALWAYS check memory first.
 
+Two reference sections sit at the end of this file: the **CONVERSION DESIGN PLAYBOOK** (what high-converting sets actually do, distilled from 8 real reference sets — you are pointed at it from Benefit Discovery, Screenshot Pairing and Generation) and **KEY PRINCIPLES**. Read the playbook before drafting benefits or writing any generation prompt.
+
 ---
 
 ## RECALL (Always Do This First)
@@ -728,6 +730,70 @@ python3 "$SKILL_DIR/showcase.py" \
 ```
 
 Run it once per completed locale. Show each showcase image to the user using the Read tool — it's a shareable preview of that locale's screenshot set.
+
+---
+
+## CONVERSION DESIGN PLAYBOOK (reference — consult from every phase)
+
+This section is distilled from a visual analysis of **8 high-converting App Store screenshot sets** across very different categories (an ADHD routine planner with a mascot, a daily-video journal with 17M+ downloads, an AI flashcards app, a photo cleaner that published its before/after redesign, a DMV test-prep app, a mobile printer app, a toy-trading marketplace, and an AI dating-reply keyboard). What follows is what those sets actually do — not general design advice.
+
+Use it in three places: **Benefit Discovery** (quantified angles + real proof), **Screenshot Pairing** (the set's narrative arc), and **Generation** (the enhancement prompts).
+
+### The 12 principles
+
+1. **Slide 1 is a poster, not a screenshot.** The strongest sets open with a hero: the single biggest outcome claim in large type plus social proof, with little or no device UI. If the app has any credible proof, it belongs on slide 1 — not on slide 4.
+2. **Social proof beats feature claims.** Laurel wreaths with rating + count ("4.8 ★ 48K RATINGS"), download counts ("17M+ DOWNLOADS"), awards ("Apple Editor's Choice"), press or channel logos, category claims ("No1 AI FLASHCARDS"), quoted 5-star reviews. **Only ever use proof that is TRUE for this app.** Ask the user; never invent a number, a rating, a press mention or an award.
+3. **Numbers beat adjectives.** "500+ exam-like questions", "x10 speed", "18+ tones", "98.7% first-time pass rate", "73.4 MB saved". Every set that quantifies reads as more credible than any superlative.
+4. **One idea per slide.** A 3–6 word, verb-first headline, in the same position on every slide (top-aligned in all eight references). Imperative or outcome phrasing: "Complete Tasks, Get Rewards", "Track your mood daily", "Just Print Anywhere".
+5. **Accent exactly one word per headline.** A coloured highlight pill behind it, a contrasting colour, or a switch to an italic/script face — one technique, one word, used the same way across the whole set. Never two accents on one headline.
+6. **One background system for the whole set.** Either a single flat brand colour on every slide, one pastel gradient family, or one continuous panoramic artwork flowing across all slides (the strongest swipe cue of all). Light and warm backgrounds outperformed dark in the published before/after redesign; dark only works with very high-contrast light UI cards.
+7. **Zoom into the moment; don't show the whole screen.** The before/after set is explicit about this: full untouched screenshots (before) → cropped, enlarged UI regions with the key control huge and legible (after). Crop the device, bleed it off an edge, let the ONE relevant element dominate.
+8. **Break a UI element out of the frame.** Cards, buttons, chat bubbles and badges lifted outside the device with their own shadow. This is the single most consistent pattern across all 8 sets — one breakout per slide, on every slide.
+9. **Show the gesture and its meaning.** A hand or finger cursor on the action, plus colour semantics (red glow = delete, green = keep). When a benefit *is* an interaction, render the interaction, not just its result.
+10. **Engineer the swipe.** An element deliberately cut off at the panel edge — a half-visible review card, the next device peeking in, artwork continuing — pulls the eye to the next screenshot. At least one edge-crossing element per slide, except the last.
+11. **Personality props sell the domain.** A mascot repeated on every slide, 3D objects from the domain (a stop sign, a printer, a LEGO brick), stickers tied to the mechanic. One personality system per set, used consistently — never generic clip-art.
+12. **Design for the thumbnail.** In search results only the first 2–3 screenshots appear, at tiny size. The headline must be readable and the value prop clear at ~150px wide. A keyword-rich slide-1 headline also mirrors the search query that surfaced the app ("PASS DMV LICENSE TEST").
+
+### Typography patterns observed
+
+- **Two-tier headline**: a small eyebrow line above a large main line ("LET CAPY BUILD / **Your Daily Routines**"). This maps directly onto this skill's verb + descriptor split.
+- **Mixed-face rhythm**: a bold geometric sans for most words plus ONE italic serif or script accent word for personality.
+- **All-caps giant condensed type** for authority and outcome claims ("PASS").
+- **Sentence-case friendly type** for lifestyle and emotional apps; caps for utility and urgency apps. Match the app's temperament.
+
+### Narrative arcs that repeat
+
+- Use → reward → customize → outcome (routine planner)
+- Build → capture → share (journal)
+- Input anything → practice → learn from mistakes (flashcards)
+- Upload → pick a style → get an answer → send (keyboard)
+
+The pattern is the same every time: **slides 2..N-1 walk the core loop in the order a real user does it, and the last slide is the social or emotional payoff.** Order the set as the user's journey, never as a feature inventory.
+
+### Per-slide templates
+
+**HERO — slide 1**
+Brand background + the biggest claim (3–6 words, one accent word) + one or two REAL proof elements (laurel, download count, press logo, quoted review) + optional mascot or domain prop + a minimal, angled or partial device. Add a niche badge if the app serves a specific audience ("ADHD routine planner support"). Little or no full UI — this slide sells the outcome, not the interface.
+
+**FEATURE — slides 2..N-1**
+Headline at the top + a cropped device showing exactly the relevant UI (zoomed to the moment) + exactly one breakout element + a gesture indicator when the benefit is an interaction + one element crossing the edge as a swipe cue.
+
+**SOCIAL / OUTCOME — last slide**
+The emotional payoff or the share moment: a result statistic ("73.4 MB saved"), a community cue (reactions, "Share Movie"), or the strongest proof block. No edge-crossing cue here — this slide closes the story.
+
+### Anti-patterns
+
+- A full-screen untouched screenshot with a plain caption under it.
+- Dark background over dark UI (low contrast).
+- More than one message, or more than one accent, on a single slide.
+- A whole feature grid crammed into one slide.
+- **Invented social proof** — fabricated ratings, downloads, press or awards. Never.
+- A different background colour or style per slide with no system tying them together.
+- Text or key UI inside the outer crop zone (this skill already enforces the 75% safe area in compose.py).
+
+### The thumbnail test
+
+Before declaring a set finished, view slide 1 at roughly **150px wide** (open it with the Read tool and judge it as it would appear in search results, or ask the user to squint at it from arm's length). It passes only if the headline is still legible and the value proposition still lands. If it fails, the headline is too long, the type too small, or the composition too busy — fix slide 1 before shipping the set.
 
 ---
 
