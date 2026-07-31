@@ -1,13 +1,14 @@
 # ASO App Store Screenshots
 
-A Claude Code skill that generates high-converting App Store screenshots for your iOS app. It analyzes your codebase, identifies the core benefits that drive downloads, and creates professional screenshot images using AI.
+A Claude Code skill that generates high-converting App Store screenshots for your iOS app — in every locale you ship. It analyzes your codebase, identifies the core benefits that drive downloads, and creates professional screenshot images using AI.
 
 ## What It Does
 
 1. **Benefit Discovery** — Analyzes your app's codebase to identify the 3–5 core benefits that drive downloads, then collaborates with you to refine and confirm them
-2. **Screenshot Pairing** — Reviews your simulator screenshots, rates them (Great / Usable / Retake), and pairs each with the most relevant benefit
-3. **Generation** — Creates polished App Store screenshots using a two-stage pipeline: deterministic scaffolding (`compose.py`) + AI enhancement (Nano Banana Pro via Gemini MCP)
-4. **Showcase** — Generates a side-by-side preview image of all final screenshots
+2. **Localization** — Resolves the App Store Connect locales you ship (`en-US`, `es-ES`, `ja`, …), translates each headline, and back-translates it so you can confirm the meaning before anything is generated
+3. **Screenshot Pairing** — Reviews your simulator screenshots, rates them (Great / Usable / Retake), and pairs each with the most relevant benefit
+4. **Generation** — Creates polished App Store screenshots using a two-stage pipeline: deterministic scaffolding (`compose.py`) + AI enhancement (GPT Image 2 via OpenRouter)
+5. **Showcase** — Generates a side-by-side preview image per locale
 
 Progress is saved to Claude Code's memory system after each phase, so you can resume across conversations without starting over.
 
@@ -30,8 +31,10 @@ git clone https://github.com/adamlyttleapps/claude-skill-aso-appstore-screenshot
 ### 2. Install Python dependencies
 
 ```bash
-pip install Pillow
+pip install Pillow requests
 ```
+
+Or skip this step entirely and run the scripts with [`uv`](https://docs.astral.sh/uv/) — they declare their dependencies inline (PEP 723), so `uv run compose.py …` handles it.
 
 ### 3. Font requirement
 
@@ -53,77 +56,39 @@ python3 compose.py --font "Inter-Black.otf" ...
 python3 compose.py --font "/path/to/MyFont-Black.ttf" ...
 ```
 
-### 4. Set up Gemini MCP (required for AI enhancement)
-
-The generation phase requires the [`@houtini/gemini-mcp`](https://www.npmjs.com/package/@houtini/gemini-mcp) MCP server. You need to configure it in both **Claude Desktop** and **Claude Code CLI** separately — they use different configuration systems.
-
-You will need a **Gemini API key**, which you can obtain from [Google AI Studio](https://aistudio.google.com/app/apikey).
-
----
-
-#### Claude Desktop
-
-Edit the Claude Desktop configuration file for your OS:
-
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `C:\Users\{username}\AppData\Roaming\Claude\claude_desktop_config.json`
-
-Add the following entry inside `mcpServers` (create the file if it doesn't exist):
-
-```json
-{
-  "mcpServers": {
-    "gemini": {
-      "command": "npx",
-      "args": ["@houtini/gemini-mcp"],
-      "env": {
-        "GEMINI_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
-```
-
-> `npx` fetches the package automatically on first run — no separate `npm install` needed. Restart Claude Desktop after saving the file.
-
-**Tip (macOS shortcut):** Open Claude Desktop → menu bar → **Claude** → **Settings** → **Developer** → **Edit Config**. This opens the file in your default editor and creates it if it doesn't exist.
-
----
-
-#### Claude Code CLI
-
-Claude Code CLI uses a separate configuration file at `~/.claude.json`. The easiest way to add the server is with the built-in `claude mcp add` command:
+The `ASO_FONT` environment variable does the same thing without touching the command line — handy for setting a per-locale font in CI or a shell profile. Precedence is `--font` → `$ASO_FONT` → the platform default:
 
 ```bash
-claude mcp add --scope user \
-  --transport stdio \
-  --env GEMINI_API_KEY=your-api-key-here \
-  gemini -- npx @houtini/gemini-mcp
+export ASO_FONT=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 ```
 
-This registers the server globally (available in all your projects). To verify it was added correctly:
+If the chosen font has no glyphs for a locale's script, compose.py substitutes a script-appropriate system font automatically and says so. Check what it would use for a given headline without generating anything:
 
 ```bash
-claude mcp list
+python3 compose.py --check --verb "追跡" --desc "カード価格"
 ```
 
-You should see `gemini` listed. No restart required — the server is picked up automatically on the next Claude Code session.
+### 4. Set up an OpenRouter API key (required for AI enhancement)
 
-> **Alternative (manual edit):** If you prefer to edit the config file directly, open `~/.claude.json` and add the `gemini` entry inside the top-level `mcpServers` object:
->
-> ```json
-> {
->   "mcpServers": {
->     "gemini": {
->       "command": "npx",
->       "args": ["@houtini/gemini-mcp"],
->       "env": {
->         "GEMINI_API_KEY": "your-api-key-here"
->       }
->     }
->   }
-> }
-> ```
+The generation phase calls the [OpenRouter Image API](https://openrouter.ai) directly from `generate_ai.py` — there is no MCP server to install.
+
+Create a key at [openrouter.ai/keys](https://openrouter.ai/keys) and export it (add it to your shell profile so it persists):
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...
+```
+
+Optional environment variables:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OPENROUTER_API_KEY` | — | **Required.** Your OpenRouter key. |
+| `ASO_IMAGE_MODEL` | `openai/gpt-image-2` | Image model. Alternatives: `google/gemini-3.1-flash-image` ("Nano Banana 2"), `google/gemini-3-pro-image`. |
+| `ASO_IMAGE_QUALITY` | `high` | Quality passed to the model. |
+| `ASO_FONT` | platform default | Headline font path — used for locales whose script the default font can't render. |
+| `ASO_HTTP_REFERER` / `ASO_APP_TITLE` | — | Optional OpenRouter attribution headers. |
+
+**Rough cost:** a set of 5-10 screenshots (3 variants each) runs about **$1-2** with `gpt-image-2` at high quality, or about **$0.35-0.80** with Nano Banana 2 - multiplied by the number of locales you generate. `generate_ai.py --dry-run` prints the request payload without spending anything.
 
 ---
 
@@ -146,29 +111,46 @@ The skill will guide you through each phase interactively. If you've run it befo
 Rather than generating screenshots from scratch (which produces inconsistent results), the skill uses a two-stage approach:
 
 1. **`compose.py`** creates a deterministic scaffold with exact text positioning, device frame placement, and your simulator screenshot composited inside — ensuring consistent layout across all screenshots
-2. **Nano Banana Pro** (via Gemini MCP) enhances the scaffold — adding a photorealistic device frame, breakout elements, and visual polish
+2. **`generate_ai.py`** sends that scaffold to the image model through OpenRouter — adding a photorealistic device frame, breakout elements, and visual polish
+3. **`resize.py`** crops the 9:16 result down to Apple's exact pixel dimensions
 
-This separation means layout is always predictable and repeatable, while the AI handles the creative enhancement.
+This separation means layout is always predictable and repeatable, while the AI handles the creative enhancement. Because the headline is drawn by Pillow and not by the model, translated text is never mangled or re-spelled.
+
+### Localization
+
+The skill works in **App Store Connect locale codes**, not bare language codes — `es-ES` and `es-MX` are different upload slots with different copy, and it will ask which ones you actually ship. Each locale gets its own working folder, its own style template (so the model can't leak English words into a Spanish set), and is generated one at a time. Every locale uses the same pixel dimensions; only the text changes.
+
+Scripts are handled by font substitution: compose.py detects the headline's script and swaps in a system font that covers it (Hiragino Sans / Noto Sans CJK for `ja`, `ko`, `zh-Hans`, `zh-Hant`; SF Arabic / Noto Naskh Arabic for `ar-SA`; SF Hebrew / Noto Sans Hebrew for `he`; and so on). You can always override with `ASO_FONT` or `--font`.
+
+**RTL caveat, honestly:** Arabic and Hebrew need Pillow built with **libraqm** to be shaped and ordered correctly. Without it, letters render isolated and in reverse visual order. Run `compose.py --check --verb "…" --desc "…"` to see whether your Pillow has raqm; the skill warns and asks before generating an RTL locale on a build that doesn't.
 
 ### Output
 
-Screenshots are saved to a `screenshots/` directory in your project root:
+Screenshots are saved to a `screenshots/` directory in your project root, organised by locale:
 
 ```
 screenshots/
-  01-benefit-slug/          ← working files for benefit 1
-    scaffold.png            ← deterministic compose.py output
-    v1.jpg, v2.jpg, v3.jpg  ← AI-enhanced versions
-    v1-resized.jpg, ...     ← cropped to App Store dimensions
-  02-benefit-slug/
+  en-US/                        ← working files for the base locale
+    01-benefit-slug/
+      scaffold.png              ← deterministic compose.py output
+      prompt.txt                ← the enhancement prompt used
+      v1.png, v2.png, v3.png    ← AI-enhanced variants (9:16 intermediates)
+      v1-resized.jpg, ...       ← cropped to exact App Store dimensions
+    02-benefit-slug/
+      ...
+  es-ES/                        ← same structure, Spanish headlines
     ...
-  final/                    ← approved screenshots, ready to upload
-    01-benefit-slug.jpg
-    02-benefit-slug.jpg
-  showcase.png              ← side-by-side preview of the full set
+  final/                        ← approved screenshots, ready to upload
+    en-US/
+      01-benefit-slug.jpg
+      02-benefit-slug.jpg
+    es-ES/
+      01-benefit-slug.jpg
+  showcase-en-US.png            ← one side-by-side preview per locale
+  showcase-es-ES.png
 ```
 
-The `final/` folder is the only one you need to care about — it contains one approved, App Store-ready screenshot per benefit, at exact Apple dimensions (default: 1290×2796px for iPhone 6.7").
+The `final/[locale]/` folders are the only ones you need to care about — each contains one approved screenshot per benefit at exact Apple dimensions (default: 1290×2796px for iPhone 6.7") and maps 1:1 to an App Store Connect locale slot. Intermediates are PNG; everything in `final/` is `.jpg`.
 
 ---
 
@@ -177,11 +159,14 @@ The `final/` folder is the only one you need to care about — it contains one a
 | File | Purpose |
 |---|---|
 | `SKILL.md` | The skill prompt — defines the multi-phase workflow |
-| `compose.py` | Deterministic scaffold generator (Pillow-based) |
+| `compose.py` | Deterministic scaffold generator (Pillow-based), with per-script font resolution |
+| `generate_ai.py` | AI enhancement via the OpenRouter Image API (GPT Image 2 by default) |
 | `resize.py` | Cross-platform crop and resize to exact store dimensions (Pillow-based) |
 | `generate_frame.py` | Generates the device frame template |
 | `showcase.py` | Generates the side-by-side showcase image |
 | `assets/device_frame.png` | Pre-rendered iPhone device frame template |
+
+Every script carries [PEP 723](https://peps.python.org/pep-0723/) inline metadata, so `uv run compose.py …` provisions its dependencies on its own. With plain `python3`, install them yourself: `pip install Pillow requests`.
 
 ---
 
