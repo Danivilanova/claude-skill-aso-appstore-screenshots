@@ -196,7 +196,7 @@ It prints the resolved font, the detected script, whether a substitution happene
 
 For every confirmed benefit, translate **both the action verb and the descriptor** into each non-base locale. Constraints:
 
-- **Stay short.** compose.py auto-shrinks the verb (256px → 150px) and the descriptor (124px → 80px) and wraps both inside the centre 75% safe area — but a headline that wraps to three lines loses its punch, and one that still doesn't fit at the minimum size makes `compose.py --strict` fail outright rather than emit a clipped scaffold. German, Finnish and Hungarian in particular run long; pick the concise option. Target a one-word verb and a three-to-four-word descriptor.
+- **Stay short.** compose.py auto-shrinks the verb (256px → 150px) and the descriptor (124px → 80px) and wraps both inside the centre 75% safe area — but a headline that wraps to three lines loses its punch, and one that still doesn't fit at the minimum size makes `compose.py --strict` fail outright rather than emit a clipped scaffold. German, Finnish, Hungarian and Russian in particular run long (a 10-character Cyrillic verb like ОТСЛЕЖИВАЙ will not fit); pick the concise option. Target a one-word verb and a three-to-four-word descriptor.
 - **Stay uppercase-friendly.** compose.py uppercases everything. Some scripts have no case (Japanese, Chinese, Korean, Arabic, Hebrew, Thai, Hindi) — that is fine, uppercasing is a no-op there; just make sure the wording reads as a headline, not a sentence.
 - **Preserve the imperative / action-verb feel.** "TRACK" → "SIGUE" (es-ES) / "SUIVEZ" (fr-FR) / "追跡" (ja). Don't drift into a noun or a passive construction.
 - **Translate the benefit, not the words.** A natural phrasing that lands the same promise beats a literal rendering.
@@ -463,7 +463,7 @@ This outputs pixel-perfect 1290×2796 PNGs with:
 - Simulator screenshot composited inside the frame
 - Solid background colour
 
-**`--strict` is mandatory here.** If the headline still does not fit after auto-sizing — a word too wide even at the minimum size, too many lines, or a text block taller than the space above the device — compose.py exits non-zero with the exact reason instead of writing a clipped scaffold. Treat that failure as a stop: shorten that locale's verb or descriptor (this is common for German, Finnish and Hungarian), re-confirm the shorter wording with the user, and re-run. Never pass a clipped scaffold to the paid image API. Without `--strict` the same problem is only a warning on stderr, which is easy to miss inside a batched command.
+**`--strict` is mandatory here.** If the headline still does not fit after auto-sizing — a word too wide even at the minimum size, too many lines, or a text block taller than the space above the device — compose.py exits non-zero with the exact reason instead of writing a clipped scaffold. Treat that failure as a stop: shorten that locale's verb or descriptor (this is common for German, Finnish, Hungarian and Russian), re-confirm the shorter wording with the user, and re-run. Never pass a clipped scaffold to the paid image API. Without `--strict` the same problem is only a warning on stderr, which is easy to miss inside a batched command.
 
 The scaffolds are internal intermediates — do NOT show them to the user or ask for confirmation. Proceed immediately to Step 3 (AI enhancement).
 
