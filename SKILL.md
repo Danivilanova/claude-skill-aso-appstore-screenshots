@@ -978,7 +978,10 @@ Before declaring a set finished, view slide 1 at roughly **150px wide** (open it
 - **Action-oriented**: Every headline starts with a strong verb
 - **User-centric**: Frame everything from the downloader's perspective
 - **Conversion-focused**: Every decision should answer "will this make someone tap Download?"
-- The first screenshot is the most important — it must communicate the single biggest reason to download
-- Screenshots should tell a story when swiped through — each one reveals a new compelling reason
+- **Numbers over adjectives**: "500+ EXAM-LIKE QUESTIONS" not "LOTS OF PRACTICE"
+- **Real proof only**: never invent a rating, a download count, an award, a press mention or a review — not in a headline, not in a prompt, not as a placeholder
+- The first screenshot is the most important — it must communicate the single biggest reason to download, and it must still do so at thumbnail size
+- Screenshots should tell a story when swiped through — each one reveals a new compelling reason, in the order a real user experiences them
 - Always pair the most visually impactful simulator screenshot with the most important benefit
 - Never use an empty state, loading screen, or settings page as a screenshot — show the app at its best
+- One idea, one accent, one breakout per slide — the CONVERSION DESIGN PLAYBOOK above is the reference for how the strongest sets actually do it
