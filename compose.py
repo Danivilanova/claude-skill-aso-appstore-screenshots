@@ -284,13 +284,48 @@ def check_rtl_support(script):
 
 
 def hex_to_rgb(h):
-    h = h.lstrip("#")
-    return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
+    """Parse #RGB or #RRGGBB into an (r, g, b) tuple."""
+    value = h.strip().lstrip("#")
+    if len(value) == 3:
+        value = "".join(ch * 2 for ch in value)      # #000 → #000000
+    if len(value) != 6 or any(c not in "0123456789abcdefABCDEF" for c in value):
+        raise SystemExit(
+            f"✗ Invalid --bg value: '{h}'\n"
+            f"  --bg must be a hex colour like #E31837 (or the short form #E13)."
+        )
+    return tuple(int(value[i : i + 2], 16) for i in (0, 2, 4))
 
 
 # Scripts written without spaces: a whole headline arrives as one "word" and
 # can only be wrapped between characters — which is how they are set anyway.
 _NO_SPACE_SCRIPTS = {"cjk", "thai"}
+
+# Minimal kinsoku shori: characters that must never open a line in Japanese
+# typesetting — small kana, the prolonged sound mark, closing brackets and
+# punctuation. When a character break lands in front of one of these, the
+# break is retreated so the offending character stays on the previous line.
+_KINSOKU_NO_START = set(
+    "、。，．・：；！？ー〜…"          # punctuation and the prolonged sound mark
+    "っゃゅょぁぃぅぇぉんゝゞ々"       # small hiragana + iteration marks
+    "ッャュョァィゥェォヮヵヶヽヾ"     # small katakana (ェックする must not open)
+    "」』）〕】》〉}]!?,.)"            # closing brackets
+)
+
+
+def _kinsoku_break(cur, ch):
+    """Split the current line so the next one does not open with `ch`.
+
+    Returns ``(head, tail)``: `head` is the line to emit, `tail` moves down to
+    join `ch` on the next line. Retreating (rather than pushing `ch` up) keeps
+    every line within the measured width. The retreat is capped at three
+    characters and always leaves one behind, so it cannot loop or empty a line.
+    """
+    if ch not in _KINSOKU_NO_START or len(cur) < 2:
+        return cur, ""
+    head, tail = cur[:-1], cur[-1]
+    while tail[0] in _KINSOKU_NO_START and len(head) > 1 and len(tail) < 3:
+        head, tail = head[:-1], head[-1] + tail
+    return head, tail
 
 
 def word_wrap(draw, text, font, max_w):
@@ -320,9 +355,10 @@ def word_wrap(draw, text, font, max_w):
         for ch in word:
             if not cur or draw.textlength(cur + ch, font=font) <= max_w:
                 cur += ch
-            else:
-                lines.append(cur)
-                cur = ch
+                continue
+            head, tail = _kinsoku_break(cur, ch)
+            lines.append(head)
+            cur = tail + ch
     if cur:
         lines.append(cur)
     return lines
