@@ -449,6 +449,7 @@ Each screenshot follows this exact high-converting ASO format. **Consistency acr
 - **Font**: Heavy/black weight sans-serif (e.g., SF Pro Display Black, Inter Black, or similar high-impact font). Not just bold — heavy/black weight for maximum impact.
 - **Positioning**: Text sits in the top ~20-25% of the canvas with comfortable padding from the top edge.
 - **Horizontal safe area (CRITICAL)**: All text MUST stay within the centre **75%** of the canvas width — a 12.5% margin on each side. This is the same number compose.py enforces (`SAFE_W_FRACTION`), and it exists because the post-processing step crops the sides of the image to convert from 9:16 to Apple's narrower aspect ratio, which keeps only ~82% of the generated width. Any text near the left or right edges WILL be cut off. Keep headlines short enough to fit comfortably within this safe zone. If a headline is too long, break it across more lines rather than extending to the edges.
+- **One accent word per headline** (playbook principle 5): exactly one word gets emphasis — a coloured highlight pill behind it, a contrasting colour, or a switch to an italic/script face. **Pick ONE technique and use it on every slide of the set.** Two accents on a headline, or a different technique per slide, reads as amateur. The scaffold does not do this: compose.py renders the whole headline in flat white, and Stage 2 applies the accent (see the prompt templates). Choose the accent word when you write the prompt — normally the number, the outcome, or the differentiator ("TRACK **40,000+** CARD PRICES").
 
 **Device frame**:
 - A modern iPhone device mockup (black frame, dynamic island)
@@ -456,19 +457,34 @@ Each screenshot follows this exact high-converting ASO format. **Consistency acr
 - The device is **positioned high on the canvas** — it overlaps or sits just below the headline text area, NOT pushed down to the bottom
 - The bottom of the device **bleeds off the bottom edge** of the canvas — the phone is intentionally cropped, not fully visible. This creates a dynamic, modern feel.
 - The device is centered horizontally
+- **Zoom to the moment, not the whole screen** (principle 7): on FEATURE slides the device is cropped and enlarged around the ONE UI region noted in the pairing, so the relevant control or card is big and legible. A shrunken full screen with everything visible and nothing readable is the single most common weak screenshot.
+- On the **HERO** slide the device is minimal, angled or largely out of frame — the claim and the proof carry that slide.
 
-**Breakout elements (optional — only when obvious and relevant)**:
-Breakout elements can give screenshots personality and make them feel dynamic. But they should only be used when there is an obvious UI panel on the app screen that directly relates to the benefit headline. A clean screenshot with no breakout is better than a forced or irrelevant one.
+**Breakout element (MANDATORY — exactly one per slide)**:
+Lifting one element out of the device frame is the most consistent pattern across every reference set (principle 8). Every slide gets exactly one: never zero, never two.
 
-- **Primary — Feature zoom-out (only when relevant)**: If there is an obvious, visually compelling entire UI panel or grouped section on the app screen that directly reinforces the benefit headline, make it "pop out" from the device frame. The panel must stay at the same vertical position and orientation as where it appears on the app screen — NOT rotated or angled. It should extend dramatically beyond BOTH left and right edges of the device frame, clearly overlapping the phone bezel on both sides, expanding to nearly the full width of the screenshot canvas. The panel must be SCALED UP significantly — much larger than it appears on the phone screen — so that it extends well beyond both left and right edges of the device frame. It should look like it is floating in front of the phone at a larger scale, bursting out of the phone's boundaries. Add a soft drop shadow beneath the breakout panel to create depth and make it feel like it's hovering above the device. The enlarged size plus the overlap with the device frame edges plus the shadow is what creates the dramatic pop-out effect. The panel must be a complete card/section (not an individual button, icon, or small element). If no panel clearly relates to the headline, skip the breakout entirely.
-- **Secondary — Supporting elements (OPTIONAL, use restraint)**: You may add 1-2 small supporting elements (contextual icons, subtle directional cues, small floating UI elements) ONLY if they are directly relevant to the benefit and enhance the story. These must NOT compete with the primary zoom-out element for attention. Less is more — a clean composition with one strong breakout element is better than a cluttered one with many. Every element added must earn its place by helping tell the story of that screen.
+- **The breakout — feature zoom-out**: Take the panel noted in the pairing and make it "pop out" of the device frame. It must stay at the same vertical position and orientation as where it appears on the app screen — NOT rotated or angled. It must be SCALED UP significantly — much larger than it appears on the phone screen — so it extends dramatically beyond BOTH left and right edges of the device frame, overlapping the phone bezel on both sides, expanding to nearly the full width of the screenshot canvas (while staying inside the 75% safe area). Do NOT keep the panel at its original on-screen size with padding around it. Add a soft drop shadow beneath it so it reads as floating in front of the device. It must be a complete card/section — not an individual button, icon or colour dot — and it must look like it came from the app: same colours, same style, same content. Do NOT invent app UI.
+- **When no UI panel fits**: on a HERO slide, or when the screen genuinely has no panel that reinforces the headline, the breakout is a **non-UI** element instead — a real proof block (laurel with the true rating, a download-count badge, a quoted review card), a niche badge, or a domain prop from the set's personality system. It still gets the same treatment: enlarged, overlapping the device edges, with a drop shadow. What you must never do is fabricate an app screen that doesn't exist, or invent proof.
+- **Supporting elements (OPTIONAL, use restraint)**: 1-2 small supporting elements (contextual icons, subtle directional cues, small floating UI elements) ONLY if they are directly relevant to the benefit. They must NOT compete with the breakout for attention. Less is more.
 
-**What to avoid**: Don't add decorative elements just because you can. No random icons, no excessive particles/sparkles, no elements unrelated to the benefit. The screenshot should feel polished and intentional, not busy.
+**Gesture and colour semantics (when the benefit is an interaction)** (principle 9): if the pairing noted a gesture, render it — a hand or finger cursor on the control, a swipe trail, a drag in progress — together with the colour meaning the app uses (red glow or frame = delete/reject, green = keep/accept). Show the interaction, not only its result.
 
-**Background (MUST be consistent across ALL screenshots in the set)**:
-- Solid bold brand colour fills the entire canvas — same colour on every screenshot
-- The background must be a clean, solid brand colour. Do NOT add glows, gradients, radial patterns, or light effects.
-- If accent shapes are used, use the same style of accent on every screenshot so the set looks like a cohesive series when viewed side-by-side
+**Swipe cue (every slide except the last)** (principle 10): one element deliberately crosses the panel edge — the next card half-visible, artwork continuing past the frame, a peeking device — so the eye is pulled to the next screenshot. The final slide has no cue: it closes the story.
+
+**Personality system (optional, but consistent if used)** (principle 11): if the app has a mascot, or the domain has obvious physical objects (a stop sign, a printer, a trading card, a dumbbell), use one personality system across the whole set — the same mascot on every slide, or the same family of 3D domain props. Never generic clip-art, never a different flavour per slide, and never props that outshine the app itself.
+
+**What to avoid**: Don't add decorative elements just because you can. No random icons, no excessive particles/sparkles, no elements unrelated to the benefit. The screenshot should feel polished and intentional, not busy. Two accents, two breakouts, or a different visual idea per slide are all worse than a plain set.
+
+**Background — one system for the whole set** (principle 6):
+Pick ONE of these three systems and apply it to every slide in the set:
+
+1. **Solid brand colour** (default, and what compose.py's scaffold produces) — the same flat colour on every screenshot. Safest, works everywhere, and the easiest for the model to keep consistent.
+2. **One gradient family** — a soft, restrained gradient in the brand hues, the same treatment on every slide. Suits lifestyle and emotional apps.
+3. **One continuous panoramic artwork** flowing across all slides — the strongest swipe cue there is, and the most work: it only holds together if every slide is generated against the same artwork reference and reviewed as a strip.
+
+> This supersedes the older blanket rule "solid colour only, never gradients or glows". The rule that actually matters is **one system, applied identically to every slide**. Randomly different backgrounds are the failure mode; a deliberate gradient family or panorama is not. When in doubt — and always when the user has no strong preference — use the solid brand colour: it is still the default and the scaffold already provides it.
+
+Light and warm backgrounds outperformed dark ones in the published before/after redesign the playbook draws on; dark backgrounds only work with very high-contrast light UI cards. Whichever system is chosen, accent shapes must follow the same style on every screenshot.
 
 ### Generation Process — Two-Stage: Scaffold then Enhance
 
@@ -483,6 +499,8 @@ Generation uses a two-stage approach for consistency:
 **Generate one locale at a time, and finish it before starting the next.** Start with the base locale (usually `en-US`) — it is the reference set, and any art-direction fixes are cheaper to make there before they are replicated.
 
 For each benefit + screenshot pair in the active locale, generate **3 variants** so the user can pick the best one.
+
+**Every prompt is written for the slide's role.** Before generating, re-read the CONVERSION DESIGN PLAYBOOK's per-slide templates and pull this slide's role (HERO / FEATURE / SOCIAL), its real proof items, its zoom region, its breakout, its gesture and its swipe cue out of memory. Two decisions are set once for the whole set and then repeated identically on every slide: the **accent technique** (pill / contrasting colour / italic face) and the **background system** (flat colour / gradient family / panorama). Record both in memory the first time you choose them.
 
 Throughout the rest of this phase, `[LOCALE]` is the active App Store Connect locale code (`en-US`, `es-ES`, `ja`, …).
 
@@ -535,6 +553,8 @@ This outputs pixel-perfect 1290×2796 PNGs with:
 
 **`--strict` is mandatory here.** If the headline still does not fit after auto-sizing — a word too wide even at the minimum size, too many lines, or a text block taller than the space above the device — compose.py exits non-zero with the exact reason instead of writing a clipped scaffold. Treat that failure as a stop: shorten that locale's verb or descriptor (this is common for German, Finnish, Hungarian and Russian), re-confirm the shorter wording with the user, and re-run. Never pass a clipped scaffold to the paid image API. Without `--strict` the same problem is only a warning on stderr, which is easy to miss inside a batched command.
 
+**The scaffold intentionally has no playbook styling.** It renders the headline in flat white, centred, with a plain device frame on a solid colour — that is what makes the layout deterministic and identical across locales. The accent word, the breakout, the gesture, the swipe cue, the proof block, the zoom crop and any gradient or panoramic background are all added in **Stage 2**, by the image model, from your prompt. Do not try to bake them into compose.py's arguments, and do not lengthen a headline to carry them.
+
 The scaffolds are internal intermediates — do NOT show them to the user or ask for confirmation. Proceed immediately to Step 3 (AI enhancement).
 
 **Step 3: Enhance with generate_ai.py (3 variants)**
@@ -571,27 +591,53 @@ Use only the scaffold as input:
 --input screenshots/[LOCALE]/01-[benefit-slug]/scaffold.png
 ```
 
+**Before writing the prompt**, fill in the slide's design decisions from memory and the pairing notes: its role (HERO / FEATURE / SOCIAL), the accent word and the accent technique for the set, the breakout, the gesture (if any), the swipe cue, the background system, and the personality system. These are the blanks in the templates below; do not leave them as placeholders.
+
 **First screenshot prompt template:**
 
 ```
 This is a SCAFFOLD for an App Store screenshot — a rough layout showing the correct text, device frame position, and app screenshot placement. Your job is to transform this into a polished, professional App Store marketing screenshot that would make someone tap Download.
 
+SLIDE ROLE: [HERO — the poster that opens the set / FEATURE — one step of the core loop / SOCIAL-OUTCOME — the closing payoff]
+
 KEEP EXACTLY AS-IS:
-- The headline text (wording, position, and approximate size)
-- The app screenshot shown on the phone screen
-- The background colour
+- The headline WORDING — every word, spelled exactly as in the scaffold, in the same language. Do not translate, rephrase, shorten or re-spell it. Keep its position (top of the canvas) and roughly its size.
+- The app screenshot content shown on the phone screen
+- The background colour (or the set's background system, described below)
+
+TYPOGRAPHIC ACCENT — exactly one word:
+- Emphasise the single word "[ACCENT WORD]" and nothing else, using this technique: [a rounded highlight pill in [COLOUR] behind the word, with the word itself in [COLOUR] / the word in the contrasting colour [COLOUR] while the rest stays white / the word set in an italic script face while the rest stays in the heavy sans]. This is the ONLY emphasis on the screenshot — never accent a second word, and never combine two techniques.
+- Everything else in the headline stays as the scaffold has it: heavy sans, white, same alignment.
+- Keep the whole headline inside the centre 75% of the canvas width — the sides get cropped later.
 
 ENHANCE AND POLISH:
-- Replace the placeholder device frame with a photorealistic iPhone 15 Pro mockup — sleek, modern, with accurate proportions, reflections, and subtle shadows. The phone should look like a real device, not a flat rectangle. Keep the same position and size as the scaffold.
+- Replace the placeholder device frame with a photorealistic iPhone 15 Pro mockup — sleek, modern, with accurate proportions, reflections, and subtle shadows. The phone should look like a real device, not a flat rectangle. Keep the same position as the scaffold.
+- ZOOM TO THE MOMENT: [FEATURE slides — crop and enlarge the device around [THE RELEVANT UI REGION] so that element is large and legible, and let the phone bleed off the bottom edge. Do NOT show the whole screen shrunk down. / HERO slides — keep the device minimal, partially out of frame or angled; the claim and the proof carry this slide.]
 - Refine the overall visual quality to look like a professional, high-budget App Store screenshot
-- OPTIONALLY add a PRIMARY breakout element — but ONLY if there is an obvious, visually compelling UI panel on the app screen that directly relates to the benefit headline. If nothing on screen clearly reinforces the headline, skip the breakout entirely — a clean screenshot with no breakout is better than a forced one. When you DO add a breakout, it MUST be an entire UI panel or grouped section (e.g., a complete card with its title and content, a full list section, a complete dialog/sheet) — never individual small elements like a single button, icon, or colour dot. IMPORTANT: The panel must stay at the SAME vertical position and orientation as where it appears on screen — do NOT rotate or angle it. The panel must be SCALED UP significantly — rendered much larger than it appears on the phone screen — so that it extends dramatically beyond BOTH left and right edges of the device frame, clearly overlapping the phone bezel on both sides, expanding to nearly the full width of the screenshot canvas. Do NOT keep the panel at its original on-screen size with just padding added around it. The panel itself must be enlarged. It should appear to float in front of the device at this larger scale — add a soft drop shadow beneath it to create depth and sell the hovering effect. The panel must look like it came from the app — same colours, same style, same content. Do NOT invent new elements.
-[PRIMARY BREAKOUT — if a relevant panel is obvious, describe the specific UI panel visible on screen and instruct it to extend beyond both edges of the device frame with a drop shadow, e.g., "The [panel name] card/row extends beyond both left and right edges of the device frame, overlapping the phone bezel on both sides, expanding to nearly the full screenshot width. It floats in front of the device with a soft drop shadow beneath it." If no panel clearly relates to the headline, write "No breakout — the app screen speaks for itself."]
-- Optionally add 1-2 secondary elements that reinforce the benefit and message of the screenshot — the kind of enhancements a professional graphic designer would add for impact. These are NOT from the app UI; they are creative additions that help clearly communicate what the screenshot is trying to portray to the user browsing the App Store. They should carry the message and support ASO conversion, but never at the cost of the overall design aesthetic. They must not compete with the primary breakout for attention.
-[SECONDARY ELEMENTS (optional) — describe 0-2 small supporting elements that tell the story, or "None needed"]
-- The background should be a clean, solid brand colour. Do NOT add glows, gradients, radial patterns, or light effects to the background. Keep it flat and bold.
-- Ensure the text is crisp, bold, and highly readable
 
-The final result should look like it was designed by a professional App Store screenshot agency — polished, high-converting, and visually striking. No watermarks, no extra text, no app store UI chrome.
+BREAKOUT — exactly one, mandatory:
+[Describe the ONE element lifted out of the device frame. For a UI panel: "The [panel name] card extends beyond both left and right edges of the device frame, overlapping the phone bezel on both sides, expanding to nearly the full safe width. It floats in front of the device with a soft drop shadow beneath it." For a HERO or a screen with no suitable panel, use a non-UI element instead: a proof block, a niche badge, or a domain prop — same enlarged, overlapping, shadowed treatment.]
+- The breakout must stay at the SAME vertical position and orientation as on screen — do NOT rotate or angle it. It must be SCALED UP significantly, not the original size with padding around it. When it is app UI it must look like it came from the app — same colours, same style, same content. Do NOT invent app UI that isn't in the screenshot.
+- Exactly one breakout: never zero, never two.
+
+PROOF (only what is listed here — never add, round up or invent any number, rating, award, press logo or review):
+[HERO/SOCIAL slides: the REAL proof items from memory, verbatim — e.g. "a laurel wreath containing 4.8 ★ and 48K RATINGS", "a badge reading 17M+ DOWNLOADS", "a quoted review card: '…' — Marta R." / Other slides, or an app with no proof: "No proof elements on this slide."]
+
+GESTURE AND COLOUR SEMANTICS:
+[When the benefit is an interaction: "Show a hand/finger cursor performing [the gesture] on [the control], with [red glow = delete / green = keep / the app's own colour meaning]." Otherwise: "No gesture indicator needed."]
+
+SWIPE CUE:
+[Every slide except the last: "Let [element] cross the [left/right] edge of the canvas so it is deliberately cut off, pulling the eye toward the next screenshot." Last slide: "No edge-crossing element — this slide closes the set."]
+
+PERSONALITY:
+[If the set has one: "Include [the mascot / the domain prop], rendered in the same style used across the set." Otherwise: "No mascot or props."]
+
+- Optionally add 1-2 small secondary elements that reinforce the message. They must not compete with the breakout for attention.
+[SECONDARY ELEMENTS (optional) — describe 0-2 small supporting elements that tell the story, or "None needed"]
+- BACKGROUND: [a clean, flat solid brand colour, no glows or gradients / the set's gradient family: a soft [COLOURS] gradient identical on every slide / the set's continuous panoramic artwork, continuing across this slide]. Whichever it is, it must be identical in treatment to every other slide in the set.
+- Ensure the text is crisp, bold, and highly readable — it must still be legible when the whole screenshot is scaled to 150px wide.
+
+The final result should look like it was designed by a professional App Store screenshot agency — polished, high-converting, and visually striking. No watermarks, no extra text beyond the headline and the proof listed above, no app store UI chrome.
 ```
 
 #### Subsequent screenshots (after the locale's first is approved)
@@ -615,23 +661,49 @@ TWO REFERENCE IMAGES:
 - FIRST image: The SCAFFOLD — use this as the definitive guide for layout: headline text wording/position, device frame placement, and the app screenshot on screen. This defines WHAT this screenshot shows.
 - SECOND image: The STYLE TEMPLATE — this is an already-approved screenshot from the same set. Match its visual style EXACTLY: same device frame rendering (this is critical — the phone must look identical), same text treatment, same background style/accents, same level of polish, same overall aesthetic. This defines HOW this screenshot should look. When in doubt, copy the style template more closely rather than less.
 
+SLIDE ROLE: [FEATURE — step [N] of the core loop / SOCIAL-OUTCOME — the closing payoff]
+
 REQUIREMENTS:
 - CRITICAL: The device frame MUST match the style template EXACTLY — same photorealistic iPhone rendering, same size, same position, same shadows, same reflections, same edge treatment. Do NOT reinvent or reimagine the device frame. Reproduce it as closely as possible from the style template, only changing the screen contents.
 - Match the style template's text rendering style (same font treatment, same crispness, same visual weight)
-- Match the style template's background — clean, solid brand colour. No glows, gradients, radial patterns, or light effects.
+- Match the style template's background system EXACTLY — [flat solid brand colour / the same gradient family / the continuation of the panoramic artwork]. Do not introduce a different background idea on this slide.
 - Use the scaffold's layout for positioning (text, device, screenshot placement)
-- OPTIONALLY add a PRIMARY breakout element — but ONLY if there is an obvious, visually compelling UI panel on the app screen that directly relates to the benefit headline. If nothing clearly reinforces the headline, skip the breakout entirely. When used, it MUST be an entire UI panel or grouped section (NOT individual small elements like a single button or icon). The panel must stay at the SAME vertical position and orientation as on screen — do NOT rotate or angle it. The panel must be SCALED UP significantly — rendered much larger than it appears on the phone screen — so that it extends dramatically beyond BOTH left and right edges of the device frame, clearly overlapping the phone bezel on both sides, expanding to nearly the full width of the screenshot canvas. Do NOT keep the panel at its original on-screen size. The panel itself must be enlarged. It should appear to float in front of the device at this larger scale — add a soft drop shadow beneath it to create depth. The panel MUST come from the app screenshot — same colours, same style, same content. Do NOT invent new elements.
-[PRIMARY BREAKOUT — if a relevant panel is obvious, describe the specific UI panel visible on screen to pop out with a drop shadow, extending beyond both device frame edges. Otherwise write "No breakout — the app screen speaks for itself."]
-- Optionally add 1-2 secondary elements that reinforce the benefit and message of the screenshot — the kind of enhancements a professional graphic designer would add for impact. These are NOT from the app UI; they are creative additions that help clearly communicate what the screenshot is trying to portray to the user browsing the App Store. They should carry the message and support ASO conversion, but never at the cost of the overall design aesthetic. They must not compete with the primary breakout for attention.
+- KEEP THE HEADLINE WORDING EXACTLY as the scaffold has it — same words, same spelling, same language. Do not translate or rephrase.
+
+TYPOGRAPHIC ACCENT — exactly one word:
+- Emphasise only the word "[ACCENT WORD]", using the SAME technique as the style template ([highlight pill / contrasting colour / italic script face]) in the same colours. One accent per screenshot, never two, and never a different technique from the rest of the set.
+
+ZOOM TO THE MOMENT:
+- Crop and enlarge the device around [THE RELEVANT UI REGION] so that element is large and legible, matching how tightly the style template crops. Do not show the whole screen shrunk down.
+
+BREAKOUT — exactly one, mandatory:
+[Describe the ONE element lifted out of the device frame, e.g. "The [panel name] card extends beyond both left and right edges of the device frame, overlapping the phone bezel on both sides, expanding to nearly the full safe width, floating with a soft drop shadow beneath it." If the screen has no suitable panel, use a non-UI element instead — a real proof block, a niche badge, or a domain prop — with the same treatment.]
+- Same rules as the rest of the set: same vertical position and orientation as on screen (never rotated or angled), scaled UP significantly rather than padded, and — when it is app UI — taken from the app screenshot with the same colours, style and content. Do NOT invent app UI. Its style and energy level must match the style template's breakout.
+- Exactly one breakout: never zero, never two.
+
+PROOF (only what is listed here — never add, round up or invent any number, rating, award, press logo or review):
+[The REAL proof items for this slide, verbatim, or "No proof elements on this slide."]
+
+GESTURE AND COLOUR SEMANTICS:
+[When the benefit is an interaction: "Show a hand/finger cursor performing [the gesture] on [the control], with [the app's colour meaning: red = delete, green = keep]." Otherwise: "No gesture indicator needed."]
+
+SWIPE CUE:
+[Every slide except the last: "Let [element] cross the [left/right] edge of the canvas so it is deliberately cut off, pulling the eye toward the next screenshot." Last slide: "No edge-crossing element — this slide closes the set."]
+
+PERSONALITY:
+[If the set has one: "Include [the mascot / the domain prop], in the same style and rendering as the style template." Otherwise: "No mascot or props."]
+
+- Optionally add 1-2 small secondary elements that reinforce the message. They must not compete with the breakout for attention.
 [SECONDARY ELEMENTS (optional) — 0-2 small supporting elements that tell the story, or "None needed"]
-- The breakout elements should match the style and energy level of those in the style template
 
 The result must look like it was designed alongside the style template as part of the same professional set. When placed side-by-side in the App Store, they should be visually cohesive — same quality, same aesthetic, same design language, just different content.
 
-No watermarks, no extra text, no app store UI chrome.
+No watermarks, no extra text beyond the headline and the proof listed above, no app store UI chrome.
 ```
 
 **IMPORTANT — Consistency enforcement**: The scaffold guarantees consistent layout. The style template guarantees consistent visual treatment. If the model changes the headline text, alters the layout, or deviates from the style template, regenerate. For a localized set, check specifically that the headline is still in the locale's language and spelled exactly as the scaffold has it — a leaked English word means the wrong style reference was passed.
+
+Regenerate as well when any of the playbook invariants breaks, because these compound across a set: **two accented words** (or a different accent technique from the rest of the set), **zero or two breakouts**, a **background** that drifts from the set's system, a headline that ends up **outside the 75% safe area**, or — most seriously — **any proof element the model invented**: a rating, a download count, a star row, an award ribbon or a press logo that was not in your prompt. Invented proof is never a "close enough" variant; discard it.
 
 **Step 4: IMMEDIATELY crop and resize ALL 3 variants to App Store dimensions**
 
@@ -660,6 +732,16 @@ Target dimensions per display size — adjust `--width` and `--height`:
 **Step 5: Review all 3 variants with the user**
 
 Present all 3 **resized** variants (the `-resized.jpg` files) to the user using the Read tool. Never show the raw model output — always show the post-processed versions.
+
+Before showing them, check each variant yourself against the playbook invariants and say which ones fail — the user should not have to spot these:
+
+- Headline wording intact, in the right language, inside the safe area
+- **Exactly one** accented word, using the set's technique
+- **Exactly one** breakout element
+- Background matches the set's system
+- Swipe cue present (or deliberately absent on the last slide)
+- **No invented proof** — no rating, star row, download count, award ribbon or press logo that you did not put in the prompt
+- On slide 1: does it still read at thumbnail size?
 
 Label them clearly as **Version 1**, **Version 2**, and **Version 3** and ask the user to pick their favourite or request changes.
 
@@ -778,11 +860,35 @@ After each screenshot is generated (or after a locale's set is complete), save g
   - Final file path (e.g., `screenshots/final/es-ES/01-track-card-prices.jpg`)
   - Simulator screenshot used (file path)
   - Font actually used for that locale, if it was substituted or set via `ASO_FONT`
-  - Breakout elements described in the prompt
+  - Slide role (HERO / FEATURE / SOCIAL) and the breakout, gesture, swipe cue and proof elements described in the prompt
+  - The set-wide decisions, recorded once: the accent technique and accent word per slide, and the background system
   - Status: generated / approved / needs-redo
   - Any user feedback or change requests noted
 
 Update this memory **incrementally** — after each screenshot is approved, add it. Don't wait until the end. This way if the conversation is interrupted mid-locale, the user can resume from the last completed screenshot in the active locale.
+
+### Set review — the thumbnail test (before declaring a locale done)
+
+Once every screenshot in a locale is in `final/[LOCALE]/`, review the set **as a set** before generating the showcase or telling the user it's finished. This is a visual judgement call, not a script.
+
+**1. The thumbnail test.** Look at slide 1 the way the App Store shows it in search results: tiny. Read it with the Read tool and assess it at roughly **150px wide** — squint, or scale it down mentally to a thumbnail on a phone-sized result row. It passes only if:
+
+- The headline is still legible — not "you can tell text is there", actually readable
+- The single biggest reason to download still lands in one glance
+- The accent word still reads as the emphasis
+- The proof block, if there is one, is still identifiable as proof
+
+If it fails, the fix is on slide 1 and it is almost always one of: headline too long, type too small because the descriptor wrapped, composition too busy, or contrast too low. Shorten the headline (re-run the scaffold), simplify the composition, and regenerate that slide. Do not ship a set whose first slide only works at full size.
+
+**2. The strip test.** View all the finals in order (the showcase image is a convenient way to see three at once) and confirm the set behaves like a series:
+
+- Same background system on every slide, same accent technique, same device rendering
+- Roles are intact: HERO first, FEATUREs in user-journey order, SOCIAL/OUTCOME last
+- Exactly one breakout per slide, and one edge-crossing swipe cue on every slide except the last
+- No repeated headline idea, no slide that could be deleted without losing anything
+- No invented proof anywhere in the set
+
+Report the result to the user honestly: which slides pass, which don't, and what you propose to change. Regenerating one weak slide is much cheaper than a set that under-converts.
 
 ### Showcase Image
 
