@@ -10,8 +10,10 @@ Showcase Image Generator
 Creates a preview image showing up to 3 final App Store screenshots
 side-by-side on a white background with an optional GitHub link at the bottom.
 
-The caption font follows $ASO_FONT when set, otherwise the first available
-platform default.
+The caption (the GitHub URL) is chrome around the screenshots, not headline
+text, so it deliberately ignores $ASO_FONT — that variable is a per-locale
+headline font for compose.py and would put, say, a Thai face on a Latin URL.
+The caption always uses the first available platform default.
 """
 
 import argparse
@@ -25,9 +27,8 @@ BOTTOM_BAR_H = 100
 
 
 def _resolve_font():
-    """First existing font from $ASO_FONT then per-platform defaults."""
+    """First existing per-platform default. Intentionally ignores $ASO_FONT."""
     candidates = [
-        os.environ.get("ASO_FONT"),
         "/Library/Fonts/SF-Pro-Display-Regular.otf",
         "/System/Library/Fonts/SFNS.ttf",
         "/System/Library/Fonts/Supplemental/Arial.ttf",
@@ -39,7 +40,8 @@ def _resolve_font():
         if path and os.path.isfile(path):
             return path
     raise SystemExit(
-        "No usable caption font found. Set ASO_FONT=/path/to/font.ttf")
+        "No usable caption font found on this system. Install a basic sans "
+        "(e.g. `sudo apt install fonts-dejavu-core` on Linux).")
 
 
 FONT_PATH = _resolve_font()
@@ -112,7 +114,7 @@ def main():
         "--screenshots",
         nargs="+",
         required=True,
-        help="Paths to final screenshot PNGs (up to 3)",
+        help="Paths to the final screenshot images, .jpg or .png (up to 3)",
     )
     p.add_argument("--output", required=True, help="Output file path")
     p.add_argument("--github", default=None, help="GitHub URL to display at bottom")

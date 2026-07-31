@@ -18,23 +18,26 @@ Progress is saved to Claude Code's memory system after each phase, so you can re
 
 ### 1. Install the skill
 
-There is no `claude install-skill` command — skills are installed by copying a folder into `~/.claude/skills/`. Run the following one-liner in your terminal:
+There is no `claude install-skill` command — skills are installed by putting a folder into `~/.claude/skills/`. Clone straight into place:
 
 ```bash
-git clone https://github.com/adamlyttleapps/claude-skill-aso-appstore-screenshots.git /tmp/aso-skill \
-  && mkdir -p ~/.claude/skills \
-  && cp -r /tmp/aso-skill ~/.claude/skills/aso-appstore-screenshots \
-  && rm -rf /tmp/aso-skill \
-  && echo "✅ Skill installed"
+git clone https://github.com/adamlyttleapps/claude-skill-aso-appstore-screenshots.git \
+  ~/.claude/skills/aso-appstore-screenshots
+```
+
+To update it later:
+
+```bash
+git -C ~/.claude/skills/aso-appstore-screenshots pull
 ```
 
 ### 2. Install Python dependencies
 
 ```bash
-pip install Pillow requests
+pip install Pillow
 ```
 
-Or skip this step entirely and run the scripts with [`uv`](https://docs.astral.sh/uv/) — they declare their dependencies inline (PEP 723), so `uv run compose.py …` handles it.
+Pillow is the only third-party dependency, and only the image scripts need it — `generate_ai.py` is standard library only. You can also skip this step and run everything with [`uv`](https://docs.astral.sh/uv/): the scripts declare their dependencies inline (PEP 723), so `uv run compose.py …` handles it.
 
 ### 3. Font requirement
 
@@ -166,7 +169,7 @@ The `final/[locale]/` folders are the only ones you need to care about — each 
 | `showcase.py` | Generates the side-by-side showcase image |
 | `assets/device_frame.png` | Pre-rendered iPhone device frame template |
 
-Every script carries [PEP 723](https://peps.python.org/pep-0723/) inline metadata, so `uv run compose.py …` provisions its dependencies on its own. With plain `python3`, install them yourself: `pip install Pillow requests`.
+Every script carries [PEP 723](https://peps.python.org/pep-0723/) inline metadata, so `uv run compose.py …` provisions its dependencies on its own. With plain `python3`, the only thing to install is Pillow (`pip install Pillow`) — `generate_ai.py` uses the standard library alone, so it runs anywhere.
 
 ---
 

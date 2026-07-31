@@ -11,14 +11,14 @@ A Claude Code skill (`aso-appstore-screenshots`) that guides users through creat
 Six files + one asset make up the skill:
 
 - **SKILL.md** — The skill prompt. Defines a multi-phase workflow: RECALL → Benefit Discovery → Localization → Screenshot Pairing → Generation → Showcase. Uses Claude Code's memory system to persist state across conversations (keyed by `(locale, benefit)` from the Localization phase onward) so users can resume mid-workflow. Generation first creates a deterministic scaffold via compose.py, then enhances it through generate_ai.py, then resizes with resize.py.
-- **compose.py** — A standalone Python compositing script (Pillow-based) that deterministically renders App Store screenshots. Takes a background hex colour, action verb, benefit descriptor, and simulator screenshot path, then produces a pixel-perfect 1290×2796 PNG with headline text, device frame template, and the screenshot composited inside. The verb text auto-sizes to fit the canvas width. Resolves fonts per platform, honours `--font` / `$ASO_FONT`, substitutes a script-appropriate font when the chosen one lacks glyphs, and warns when RTL text is rendered without libraqm.
-- **generate_ai.py** — AI enhancement via the OpenRouter Image API (`POST https://openrouter.ai/api/v1/images`). Takes a prompt and up to 16 reference images (scaffold first, then style templates), inlines them as base64 data URLs in `input_references`, and writes the returned images. Defaults to `openai/gpt-image-2`; `--dry-run` prints the payload without calling the API.
+- **compose.py** — A standalone Python compositing script (Pillow-based) that deterministically renders App Store screenshots. Takes a background hex colour, action verb, benefit descriptor, and simulator screenshot path, then produces a pixel-perfect 1290×2796 PNG with headline text, device frame template, and the screenshot composited inside. Both headline lines auto-size and wrap inside the centre 75% safe area (`SAFE_W_FRACTION`), with character-level wrapping for space-less scripts; `--strict` makes it exit non-zero rather than write a clipped scaffold. Resolves fonts per platform, honours `--font` / `$ASO_FONT`, substitutes a script-appropriate font when the chosen one lacks glyphs, and warns when RTL text is rendered without libraqm.
+- **generate_ai.py** — AI enhancement via the OpenRouter Image API (`POST https://openrouter.ai/api/v1/images`). Takes a prompt and up to 16 reference images (scaffold first, then style templates), inlines them as base64 data URLs in `input_references`, and writes the returned images. Defaults to `openai/gpt-image-2`; `--dry-run` prints the payload without calling the API. Standard library only (urllib, 600s timeout), so it needs no pip install and never breaks the workflow half-way with a missing module.
 - **resize.py** — Cross-platform crop and resize script (Pillow-based). Crops to the target aspect ratio (center-crop, top edge preserved) then resizes to exact pixel dimensions, optionally changing the extension with `--ext`. Replaces the macOS-only `sips` commands. Works on macOS, Linux, and Windows.
 - **generate_frame.py** — Generates the device frame template PNG (`assets/device_frame.png`). Run once to create or update the template. The template is a 1290×2796 RGBA PNG with a black iPhone body, transparent screen cutout, Dynamic Island, and side buttons.
-- **showcase.py** — Generates a showcase image showing up to 3 final screenshots side-by-side with an optional GitHub link at the bottom. Run once per locale, after that locale's set is approved.
+- **showcase.py** — Generates a showcase image showing up to 3 final screenshots (.jpg or .png) side-by-side with an optional GitHub link at the bottom. Run once per locale, after that locale's set is approved. The caption font ignores `$ASO_FONT` on purpose — that variable is a per-locale headline font and has no business setting a Latin URL.
 - **assets/device_frame.png** — Pre-rendered iPhone device frame template used by compose.py. Using a template instead of drawing the frame at compose time ensures pixel-perfect consistency across all generated screenshots.
 
-Every script carries PEP 723 inline metadata, so `uv run <script>` provisions its dependencies. With plain `python3`, install `Pillow` (all scripts) and `requests` (generate_ai.py).
+Every script carries PEP 723 inline metadata, so `uv run <script>` provisions its dependencies. With plain `python3` the only install needed is `Pillow`; generate_ai.py is stdlib-only.
 
 ## Environment variables
 
@@ -28,20 +28,22 @@ Every script carries PEP 723 inline metadata, so `uv run <script>` provisions it
 | `ASO_IMAGE_MODEL` | `openai/gpt-image-2` | generate_ai.py |
 | `ASO_IMAGE_QUALITY` | `high` | generate_ai.py |
 | `ASO_HTTP_REFERER`, `ASO_APP_TITLE` | — | generate_ai.py (OpenRouter attribution headers) |
-| `ASO_FONT` | platform default | compose.py, showcase.py |
+| `ASO_FONT` | platform default | compose.py (headline only — showcase.py ignores it) |
 
 ## Running compose.py
 
 ```bash
 # Requires: pip install Pillow (or: uv run compose.py …)
 
-python3 compose.py \
+python3 compose.py --strict \
   --bg "#E31837" \
   --verb "TRACK" \
   --desc "TRADING CARD PRICES" \
   --screenshot path/to/simulator.png \
   --output output.png \
   --font "Inter-Black.otf"   # optional; also honours $ASO_FONT
+
+# --strict: fail instead of writing a scaffold whose headline does not fit
 
 # Report font/script/RTL support for a headline without composing anything
 python3 compose.py --check --verb "追跡" --desc "カード価格"
@@ -86,7 +88,7 @@ Each input file gets a `-resized` sibling (e.g. `v1.png` → `v1-resized.jpg`). 
 - **One style template per locale**: never feed another locale's approved screenshot as a style reference — the model reads the text in the reference and leaks the source language into the output.
 - **Script coverage is a font problem, not a hard limit**: compose.py detects the headline's script, checks glyph coverage against the .notdef box, and substitutes a system font (Hiragino Sans / Noto Sans CJK, SF Arabic / Noto Naskh Arabic, SF Hebrew, Thonburi, …). RTL locales are the real caveat: Pillow shapes Arabic/Hebrew correctly only when built with libraqm, so compose.py warns and the skill asks the user before generating those locales.
 - **Device frame is a template image** (`assets/device_frame.png`) — not drawn at compose time. Regenerate with `python3 generate_frame.py` if the frame design needs updating.
-- **Verb text auto-sizes** — shrinks from 256px down to 150px to fit multi-word verbs (e.g. "TURN YOURSELF") within the canvas width.
+- **Headline text auto-sizes and is validated** — the verb shrinks 256→150px, the descriptor 124→80px, both wrap inside the centre 75% of the canvas (the width that survives the 9:16 crop), and space-less scripts (CJK, Thai) wrap between characters. If it still does not fit, compose.py reports exactly why: a warning by default, exit 1 under `--strict`, which is what SKILL.md uses so a clipped scaffold never reaches the paid API.
 - **SKILL.md always generates 3 variants** for each benefit so the user can pick the best one — a single `generate_ai.py --n 3` call.
 - **File extensions**: scaffolds and AI intermediates are `.png`; everything in `final/` is `.jpg` (resize.py's `--ext jpg` does the conversion).
 - **Memory is central to the workflow** — benefits, locales and their approved translations, screenshot assessments, pairings, brand colour, per-locale fonts, and generation state are all persisted so users can resume across conversations.
