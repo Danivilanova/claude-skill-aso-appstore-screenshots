@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "Pillow>=10.0",
+# ]
+# ///
 """
 App Store Screenshot Composer
 Composites headline text, device frame template, and app screenshot
@@ -6,13 +12,25 @@ into a pixel-perfect 1290×2796 App Store Connect image.
 
 The device frame is positioned dynamically based on text height,
 matching the proportions seen in professional App Store screenshots.
+
+Font resolution order (highest priority first):
+  1. --font <name-or-absolute-path>
+  2. $ASO_FONT (absolute path, or a filename in the platform font dirs)
+  3. The platform default (SF Pro Display Black / Noto Sans Black / Arial Bold)
+
+If the resolved font lacks glyphs for the headline's script (CJK, Arabic,
+Hebrew, Thai, Devanagari, …) a script-appropriate system font is substituted
+automatically. Right-to-left scripts additionally need Pillow built with
+libraqm for correct shaping — compose.py warns loudly when it is missing.
 """
 
 import argparse
 import os
 import platform
 import subprocess
-from PIL import Image, ImageDraw, ImageFont, ImageChops
+import sys
+import unicodedata
+from PIL import Image, ImageDraw, ImageFont, ImageChops, features
 
 # ── Canvas ──────────────────────────────────────────────────────────
 CANVAS_W = 1290
@@ -43,7 +61,12 @@ FRAME_PATH = os.path.join(os.path.dirname(__file__), "assets", "device_frame.png
 _SYSTEM = platform.system()
 
 if _SYSTEM == "Darwin":
-    _FONT_DIRS = ["/Library/Fonts", os.path.expanduser("~/Library/Fonts")]
+    _FONT_DIRS = [
+        "/Library/Fonts",
+        os.path.expanduser("~/Library/Fonts"),
+        "/System/Library/Fonts",
+        "/System/Library/Fonts/Supplemental",
+    ]
     _DEFAULT_FONT = "SF-Pro-Display-Black.otf"
 elif _SYSTEM == "Linux":
     _FONT_DIRS = [
@@ -59,15 +82,77 @@ else:  # Windows
     _DEFAULT_FONT = "arialbd.ttf"
 
 
-def _resolve_font(font_name):
+# ── Per-script fallback fonts ──────────────────────────────────────
+# Used automatically when the selected font has no glyphs for the headline.
+# First entry that resolves on this machine wins.
+_SCRIPT_FONTS = {
+    "cjk": {
+        "Darwin": ["ヒラギノ角ゴシック W8.ttc", "ヒラギノ角ゴシック W6.ttc",
+                   "Hiragino Sans GB.ttc", "PingFang.ttc",
+                   "AppleSDGothicNeo.ttc", "STHeiti Medium.ttc"],
+        "Linux": ["NotoSansCJK-Black.ttc", "NotoSansCJK-Bold.ttc",
+                  "NotoSansCJKsc-Bold.otf", "NotoSansCJKjp-Bold.otf"],
+        "Windows": ["msyhbd.ttc", "meiryob.ttc", "malgunbd.ttf"],
+    },
+    "arabic": {
+        "Darwin": ["SFArabic.ttf", "GeezaPro.ttc", "Baghdad.ttc",
+                   "Arial Unicode.ttf"],
+        "Linux": ["NotoNaskhArabic-Bold.ttf", "NotoSansArabic-Black.ttf",
+                  "NotoSansArabic-Bold.ttf"],
+        "Windows": ["arabtype.ttf", "trebucbd.ttf"],
+    },
+    "hebrew": {
+        "Darwin": ["SFHebrew.ttf", "ArialHB.ttc", "NewPeninimMT.ttc",
+                   "Arial Unicode.ttf"],
+        "Linux": ["NotoSansHebrew-Black.ttf", "NotoSansHebrew-Bold.ttf"],
+        "Windows": ["ariblk.ttf", "arialbd.ttf"],
+    },
+    "thai": {
+        "Darwin": ["ThonburiUI.ttc", "Thonburi.ttc", "Ayuthaya.ttf",
+                   "Arial Unicode.ttf"],
+        "Linux": ["NotoSansThai-Black.ttf", "NotoSansThai-Bold.ttf"],
+        "Windows": ["leelawdb.ttf", "tahomabd.ttf"],
+    },
+    "devanagari": {
+        "Darwin": ["SFIndia.ttc", "Devanagari Sangam MN.ttc", "Kohinoor.ttc",
+                   "Arial Unicode.ttf"],
+        "Linux": ["NotoSansDevanagari-Black.ttf", "NotoSansDevanagari-Bold.ttf"],
+        "Windows": ["mangalb.ttf", "NirmalaB.ttf"],
+    },
+    "greek": {
+        "Darwin": ["SF-Pro-Display-Black.otf", "HelveticaNeue.ttc", "Arial Black.ttf"],
+        "Linux": ["NotoSans-Black.ttf", "DejaVuSans-Bold.ttf"],
+        "Windows": ["ariblk.ttf", "arialbd.ttf"],
+    },
+    "cyrillic": {
+        "Darwin": ["SF-Pro-Display-Black.otf", "Arial Black.ttf"],
+        "Linux": ["NotoSans-Black.ttf", "DejaVuSans-Bold.ttf"],
+        "Windows": ["ariblk.ttf", "arialbd.ttf"],
+    },
+}
+
+# Scripts written right-to-left — these need libraqm for correct shaping.
+_RTL_SCRIPTS = {"arabic", "hebrew"}
+
+
+def _resolve_font(font_name, required=True):
     """Find a font file by name, searching platform-appropriate directories.
 
     Accepts either a bare filename (searched in platform font dirs) or a full
     absolute path. On Linux, falls back to ``fc-match`` if the file isn't
-    found in the standard directories.
+    found in the standard directories. Returns ``None`` instead of raising
+    when ``required`` is False (used for optional per-script fallbacks).
     """
-    if os.path.isabs(font_name) and os.path.isfile(font_name):
-        return font_name
+    if os.path.isabs(font_name):
+        if os.path.isfile(font_name):
+            return font_name
+        if required:
+            raise SystemExit(
+                f"Font not found: {font_name}\n"
+                f"Pass an existing file with --font, or set ASO_FONT to a bold "
+                f"display .ttf/.otf."
+            )
+        return None
     for d in _FONT_DIRS:
         candidate = os.path.join(d, font_name)
         if os.path.isfile(candidate):
@@ -83,10 +168,109 @@ def _resolve_font(font_name):
                 return result.stdout.strip()
         except FileNotFoundError:
             pass
-    raise FileNotFoundError(
+    if not required:
+        return None
+    raise SystemExit(
         f"Font '{font_name}' not found in: {', '.join(_FONT_DIRS)}. "
-        f"Pass a full path with --font /path/to/font.ttf"
+        f"Pass a full path with --font /path/to/font.ttf, or set ASO_FONT."
     )
+
+
+def detect_script(text):
+    """Return a coarse script key ('latin', 'cjk', 'arabic', …) for `text`."""
+    prefixes = {
+        "CJK": "cjk", "HIRAGANA": "cjk", "KATAKANA": "cjk", "HANGUL": "cjk",
+        "ARABIC": "arabic", "HEBREW": "hebrew", "THAI": "thai",
+        "DEVANAGARI": "devanagari", "GREEK": "greek", "CYRILLIC": "cyrillic",
+    }
+    for ch in text:
+        if not ch.strip() or ch.isdigit():
+            continue
+        try:
+            name = unicodedata.name(ch)
+        except ValueError:
+            continue
+        for prefix, script in prefixes.items():
+            if name.startswith(prefix):
+                return script
+    return "latin"
+
+
+def _render_glyph(font, ch):
+    """Rasterise a single character to raw bytes (for glyph comparison)."""
+    img = Image.new("L", (96, 96), 0)
+    ImageDraw.Draw(img).text((8, 8), ch, fill=255, font=font)
+    return img.tobytes()
+
+
+def _missing_glyphs(font_path, text):
+    """Return the characters in `text` the font has no glyph for.
+
+    Detected by comparing each character's rasterisation against that of a
+    codepoint no font maps (a Unicode tag character) — i.e. the .notdef box.
+    """
+    probe = ImageFont.truetype(font_path, 48)
+    notdef = _render_glyph(probe, "\U000e0002")
+    missing = []
+    for ch in sorted(set(text)):
+        if not ch.strip():
+            continue
+        try:
+            if _render_glyph(probe, ch) == notdef:
+                missing.append(ch)
+        except Exception:
+            missing.append(ch)
+    return missing
+
+
+def pick_font(text, requested=None):
+    """Resolve the headline font, substituting a script font when needed.
+
+    Returns ``(font_path, script, substituted)``.
+    """
+    requested = requested or os.environ.get("ASO_FONT") or _DEFAULT_FONT
+    font_path = _resolve_font(requested)
+    script = detect_script(text)
+
+    if not _missing_glyphs(font_path, text):
+        return font_path, script, False
+
+    for candidate in _SCRIPT_FONTS.get(script, {}).get(_SYSTEM, []):
+        alt = _resolve_font(candidate, required=False)
+        if alt and not _missing_glyphs(alt, text):
+            print(
+                f"⚠ '{os.path.basename(font_path)}' has no {script} glyphs — "
+                f"using '{os.path.basename(alt)}' instead.",
+                file=sys.stderr,
+            )
+            return alt, script, True
+
+    print(
+        f"⚠ '{os.path.basename(font_path)}' is missing glyphs for this "
+        f"{script} headline and no fallback font was found on this system. "
+        f"The text will render as tofu (□). Set ASO_FONT to a font that "
+        f"covers {script}.",
+        file=sys.stderr,
+    )
+    return font_path, script, False
+
+
+def check_rtl_support(script):
+    """Warn when an RTL headline is rendered without libraqm shaping."""
+    if script not in _RTL_SCRIPTS:
+        return True
+    if features.check("raqm"):
+        return True
+    print(
+        "⚠ RTL WARNING: this Pillow build has no libraqm, so Arabic/Hebrew "
+        "text will NOT be shaped or reordered correctly (letters appear "
+        "isolated and in visual reverse order). Install a Pillow build with "
+        "libraqm (e.g. `pip install --upgrade --force-reinstall Pillow` on a "
+        "system with libraqm, or `brew install libraqm` first on macOS) "
+        "before shipping this locale.",
+        file=sys.stderr,
+    )
+    return False
 
 
 def hex_to_rgb(h):
@@ -135,7 +319,8 @@ def draw_centered(draw, y, text, font, max_w=None):
 
 def compose(bg_hex, verb, desc, screenshot_path, output_path, font=None):
     bg = hex_to_rgb(bg_hex)
-    font_path = _resolve_font(font or _DEFAULT_FONT)
+    font_path, script, _ = pick_font(f"{verb}{desc}".upper(), font)
+    check_rtl_support(script)
 
     # ── 1. Canvas ───────────────────────────────────────────────────
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*bg, 255))
@@ -212,16 +397,36 @@ def compose(bg_hex, verb, desc, screenshot_path, output_path, font=None):
 
 def main():
     p = argparse.ArgumentParser(description="Compose App Store screenshot")
-    p.add_argument("--bg", required=True, help="Background hex colour (#E31837)")
+    p.add_argument("--bg", help="Background hex colour (#E31837)")
     p.add_argument("--font", default=None,
-                   help="Font filename or full path. Auto-detected per platform: "
-                        "SF Pro Display Black (macOS), Noto Sans Black (Linux), "
-                        "Arial Bold (Windows)")
+                   help="Font filename or full path. Overrides $ASO_FONT. "
+                        "Auto-detected per platform when omitted: SF Pro Display "
+                        "Black (macOS), Noto Sans Black (Linux), Arial Bold "
+                        "(Windows)")
     p.add_argument("--verb", required=True, help="Action verb (TRACK)")
     p.add_argument("--desc", required=True, help="Benefit descriptor (TRADING CARD PRICES)")
-    p.add_argument("--screenshot", required=True, help="Simulator screenshot path")
-    p.add_argument("--output", required=True, help="Output file path")
+    p.add_argument("--screenshot", help="Simulator screenshot path")
+    p.add_argument("--output", help="Output file path")
+    p.add_argument("--check", action="store_true",
+                   help="Report the font/script/RTL support for this headline "
+                        "and exit without composing anything")
     args = p.parse_args()
+
+    if args.check:
+        font_path, script, substituted = pick_font(
+            f"{args.verb}{args.desc}".upper(), args.font)
+        rtl_ok = check_rtl_support(script)
+        print(f"font:        {font_path}")
+        print(f"script:      {script}")
+        print(f"substituted: {substituted}")
+        print(f"raqm:        {features.check('raqm')}")
+        print(f"rtl-ready:   {rtl_ok}")
+        return
+
+    missing = [f"--{n}" for n in ("bg", "screenshot", "output")
+               if getattr(args, n) is None]
+    if missing:
+        p.error(f"the following arguments are required: {', '.join(missing)}")
 
     compose(args.bg, args.verb, args.desc, args.screenshot, args.output, font=args.font)
 
