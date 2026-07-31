@@ -196,7 +196,7 @@ It prints the resolved font, the detected script, whether a substitution happene
 
 For every confirmed benefit, translate **both the action verb and the descriptor** into each non-base locale. Constraints:
 
-- **Stay short.** compose.py auto-shrinks the verb from 256px down to 150px to fit, and wraps the descriptor — but a headline that wraps to three lines loses its punch. German and Finnish in particular run long; pick the concise option.
+- **Stay short.** compose.py auto-shrinks the verb (256px → 150px) and the descriptor (124px → 80px) and wraps both inside the centre 75% safe area — but a headline that wraps to three lines loses its punch, and one that still doesn't fit at the minimum size makes `compose.py --strict` fail outright rather than emit a clipped scaffold. German, Finnish and Hungarian in particular run long; pick the concise option. Target a one-word verb and a three-to-four-word descriptor.
 - **Stay uppercase-friendly.** compose.py uppercases everything. Some scripts have no case (Japanese, Chinese, Korean, Arabic, Hebrew, Thai, Hindi) — that is fine, uppercasing is a no-op there; just make sure the wording reads as a headline, not a sentence.
 - **Preserve the imperative / action-verb feel.** "TRACK" → "SIGUE" (es-ES) / "SUIVEZ" (fr-FR) / "追跡" (ja). Don't drift into a noun or a passive construction.
 - **Translate the benefit, not the words.** A natural phrasing that lands the same promise beats a literal rendering.
@@ -378,7 +378,7 @@ Each screenshot follows this exact high-converting ASO format. **Consistency acr
 - **Line 2 — Benefit descriptor**: The rest of the headline (e.g., "TRADING CARD PRICES", "ANY VERSE IN SECONDS"). Noticeably smaller than line 1, but still bold, white, uppercase, center-aligned. Same font, same size, same weight on every screenshot.
 - **Font**: Heavy/black weight sans-serif (e.g., SF Pro Display Black, Inter Black, or similar high-impact font). Not just bold — heavy/black weight for maximum impact.
 - **Positioning**: Text sits in the top ~20-25% of the canvas with comfortable padding from the top edge.
-- **Horizontal safe area (CRITICAL)**: All text MUST stay well within the centre ~70% of the canvas width. Leave generous horizontal margins on both sides — at least 15% padding from each edge. This is essential because the post-processing step crops the sides of the image to convert from 9:16 to Apple's narrower aspect ratio. Any text near the left or right edges WILL be cut off. Keep headlines short enough to fit comfortably within this safe zone. If a headline is too long, break it across more lines rather than extending to the edges.
+- **Horizontal safe area (CRITICAL)**: All text MUST stay within the centre **75%** of the canvas width — a 12.5% margin on each side. This is the same number compose.py enforces (`SAFE_W_FRACTION`), and it exists because the post-processing step crops the sides of the image to convert from 9:16 to Apple's narrower aspect ratio, which keeps only ~82% of the generated width. Any text near the left or right edges WILL be cut off. Keep headlines short enough to fit comfortably within this safe zone. If a headline is too long, break it across more lines rather than extending to the edges.
 
 **Device frame**:
 - A modern iPhone device mockup (black frame, dynamic island)
@@ -438,17 +438,17 @@ The compose.py script lives in the skill directory. Run it to create the determi
 ```bash
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
 mkdir -p screenshots/[LOCALE]/01-[benefit-slug] screenshots/[LOCALE]/02-[benefit-slug] screenshots/[LOCALE]/03-[benefit-slug] && \
-python3 "$SKILL_DIR/compose.py" \
+python3 "$SKILL_DIR/compose.py" --strict \
   --bg "[HEX CODE]" --verb "[VERB 1 in LOCALE]" --desc "[DESC 1 in LOCALE]" \
   --font "[FONT_FILE or omit flag]" \
   --screenshot [path/to/screenshot-1.png] \
   --output screenshots/[LOCALE]/01-[benefit-slug]/scaffold.png && \
-python3 "$SKILL_DIR/compose.py" \
+python3 "$SKILL_DIR/compose.py" --strict \
   --bg "[HEX CODE]" --verb "[VERB 2 in LOCALE]" --desc "[DESC 2 in LOCALE]" \
   --font "[FONT_FILE or omit flag]" \
   --screenshot [path/to/screenshot-2.png] \
   --output screenshots/[LOCALE]/02-[benefit-slug]/scaffold.png && \
-python3 "$SKILL_DIR/compose.py" \
+python3 "$SKILL_DIR/compose.py" --strict \
   --bg "[HEX CODE]" --verb "[VERB 3 in LOCALE]" --desc "[DESC 3 in LOCALE]" \
   --font "[FONT_FILE or omit flag]" \
   --screenshot [path/to/screenshot-3.png] \
@@ -458,10 +458,12 @@ python3 "$SKILL_DIR/compose.py" \
 (Prefix the whole command with `ASO_FONT="[/path/to/locale-font]" ` when that locale needs a specific face.)
 
 This outputs pixel-perfect 1290×2796 PNGs with:
-- Bold white headline text (verb auto-sized to fit canvas width)
+- Bold white headline text. Both lines auto-size to fit: the verb shrinks 256px → 150px, the descriptor 124px → 80px, and both wrap inside the centre 75% safe area. Space-less scripts (Japanese, Chinese, Thai) wrap between characters, so a long CJK descriptor becomes two lines instead of one clipped line.
 - iPhone device frame (from pre-rendered template)
 - Simulator screenshot composited inside the frame
 - Solid background colour
+
+**`--strict` is mandatory here.** If the headline still does not fit after auto-sizing — a word too wide even at the minimum size, too many lines, or a text block taller than the space above the device — compose.py exits non-zero with the exact reason instead of writing a clipped scaffold. Treat that failure as a stop: shorten that locale's verb or descriptor (this is common for German, Finnish and Hungarian), re-confirm the shorter wording with the user, and re-run. Never pass a clipped scaffold to the paid image API. Without `--strict` the same problem is only a warning on stderr, which is easy to miss inside a batched command.
 
 The scaffolds are internal intermediates — do NOT show them to the user or ask for confirmation. Proceed immediately to Step 3 (AI enhancement).
 

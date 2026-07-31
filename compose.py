@@ -49,11 +49,21 @@ MIN_TEXT_DEVICE_GAP = 40             # minimum gap between text bottom and devic
 # ── Typography ──────────────────────────────────────────────────────
 VERB_SIZE_MAX = 256
 VERB_SIZE_MIN = 150
-DESC_SIZE = 124
+DESC_SIZE_MAX = 124
+DESC_SIZE_MIN = 80
 VERB_DESC_GAP = 20
 DESC_LINE_GAP = 24
-MAX_TEXT_W = int(CANVAS_W * 0.92)
-MAX_VERB_W = int(CANVAS_W * 0.92)
+MAX_VERB_LINES = 2
+MAX_DESC_LINES = 3
+TEXT_TOP = 200                       # y of the first headline line
+
+# Horizontal safe area. The AI enhancement step generates at 9:16 and the
+# result is cropped back to Apple's narrower ratio, which keeps ~82% of the
+# width — so anything wider than this risks losing text to that crop.
+# SKILL.md quotes the same 75% figure; keep the two in sync.
+SAFE_W_FRACTION = 0.75
+MAX_TEXT_W = int(CANVAS_W * SAFE_W_FRACTION)
+MAX_VERB_W = int(CANVAS_W * SAFE_W_FRACTION)
 
 FRAME_PATH = os.path.join(os.path.dirname(__file__), "assets", "device_frame.png")
 
@@ -278,35 +288,132 @@ def hex_to_rgb(h):
     return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
 
 
+# Scripts written without spaces: a whole headline arrives as one "word" and
+# can only be wrapped between characters — which is how they are set anyway.
+_NO_SPACE_SCRIPTS = {"cjk", "thai"}
+
+
 def word_wrap(draw, text, font, max_w):
-    words = text.split()
+    """Wrap `text` to `max_w`.
+
+    Space-delimited scripts wrap on spaces. A token in a space-less script
+    (Chinese, Japanese, Thai) is wrapped between characters instead — without
+    this, a Japanese descriptor is a single line that runs off both edges.
+    A too-long Latin word is NOT broken mid-word (that would need real
+    hyphenation); it is left over-wide so the overflow check can report it.
+    """
     lines, cur = [], ""
-    for w in words:
-        test = f"{cur} {w}".strip()
-        if draw.textlength(test, font=font) <= max_w:
-            cur = test
-        else:
-            if cur:
+    for word in text.split():
+        candidate = f"{cur} {word}".strip()
+        if draw.textlength(candidate, font=font) <= max_w:
+            cur = candidate
+            continue
+        if cur:
+            lines.append(cur)
+            cur = ""
+        if draw.textlength(word, font=font) <= max_w:
+            cur = word
+            continue
+        if detect_script(word) not in _NO_SPACE_SCRIPTS:
+            lines.append(word)      # reported by _overflow_reasons()
+            continue
+        for ch in word:
+            if not cur or draw.textlength(cur + ch, font=font) <= max_w:
+                cur += ch
+            else:
                 lines.append(cur)
-            cur = w
+                cur = ch
     if cur:
         lines.append(cur)
     return lines
 
 
-def fit_font(text, max_w, size_max, size_min, font_path):
-    """Return the largest font size where text fits within max_w."""
+def _measure(lines, font):
+    """Height the given lines occupy when drawn by draw_lines()."""
+    dummy = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    total = 0
+    for line in lines:
+        bbox = dummy.textbbox((0, 0), line, font=font)
+        total += (bbox[3] - bbox[1]) + DESC_LINE_GAP
+    return total
+
+
+def fit_font(text, max_w, size_max, size_min, font_path, max_lines):
+    """Largest size at which `text` wraps to `max_lines` lines within `max_w`.
+
+    Returns ``(font, lines)``. If even `size_min` cannot satisfy the
+    constraints, the min-size result is returned anyway — the caller decides
+    what to do about it.
+    """
     dummy = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     for size in range(size_max, size_min - 1, -4):
         f = ImageFont.truetype(font_path, size)
-        bbox = dummy.textbbox((0, 0), text, font=f)
-        if (bbox[2] - bbox[0]) <= max_w:
-            return f
-    return ImageFont.truetype(font_path, size_min)
+        lines = word_wrap(dummy, text, f, max_w)
+        if len(lines) <= max_lines and all(
+            dummy.textlength(line, font=f) <= max_w for line in lines
+        ):
+            return f, lines
+    f = ImageFont.truetype(font_path, size_min)
+    return f, word_wrap(dummy, text, f, max_w)
 
 
-def draw_centered(draw, y, text, font, max_w=None):
-    lines = word_wrap(draw, text, font, max_w) if max_w else [text]
+def fit_block(verb, desc, font_path):
+    """Fit both headline lines horizontally, then shrink until they fit
+    vertically between the text top and the device.
+
+    Returns ``(verb_font, verb_lines, desc_font, desc_lines, block_h)``.
+    """
+    available = DEVICE_Y - MIN_TEXT_DEVICE_GAP - TEXT_TOP
+    verb_size, desc_size = VERB_SIZE_MAX, DESC_SIZE_MAX
+
+    while True:
+        verb_font, verb_lines = fit_font(
+            verb, MAX_VERB_W, verb_size, VERB_SIZE_MIN, font_path,
+            MAX_VERB_LINES)
+        desc_font, desc_lines = fit_font(
+            desc, MAX_TEXT_W, desc_size, DESC_SIZE_MIN, font_path,
+            MAX_DESC_LINES)
+        block_h = _measure(verb_lines, verb_font) + VERB_DESC_GAP + \
+            _measure(desc_lines, desc_font)
+        if block_h <= available:
+            break
+        # Shrink the descriptor first — the verb is the ASO hook.
+        if desc_size > DESC_SIZE_MIN:
+            desc_size = max(DESC_SIZE_MIN, desc_size - 4)
+        elif verb_size > VERB_SIZE_MIN:
+            verb_size = max(VERB_SIZE_MIN, verb_size - 4)
+        else:
+            break
+
+    return verb_font, verb_lines, desc_font, desc_lines, block_h
+
+
+def _overflow_reasons(verb_lines, verb_font, desc_lines, desc_font, block_h):
+    """Describe every way this headline still does not fit. Empty == fine."""
+    dummy = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    reasons = []
+    for label, lines, font, max_w, max_lines in (
+        ("verb", verb_lines, verb_font, MAX_VERB_W, MAX_VERB_LINES),
+        ("descriptor", desc_lines, desc_font, MAX_TEXT_W, MAX_DESC_LINES),
+    ):
+        widest = max((dummy.textlength(l, font=font) for l in lines), default=0)
+        if widest > max_w:
+            reasons.append(
+                f"the {label} is {int(widest)}px wide at its smallest size, "
+                f"over the {max_w}px safe area")
+        if len(lines) > max_lines:
+            reasons.append(
+                f"the {label} needs {len(lines)} lines (max {max_lines})")
+    available = DEVICE_Y - MIN_TEXT_DEVICE_GAP - TEXT_TOP
+    if block_h > available:
+        reasons.append(
+            f"the headline block is {block_h}px tall, over the {available}px "
+            f"between the text top and the device")
+    return reasons
+
+
+def draw_lines(draw, y, lines, font):
+    """Draw pre-wrapped lines centred horizontally, returning the new y."""
     for line in lines:
         bbox = draw.textbbox((0, 0), line, font=font)
         h = bbox[3] - bbox[1]
@@ -317,7 +424,8 @@ def draw_centered(draw, y, text, font, max_w=None):
     return y
 
 
-def compose(bg_hex, verb, desc, screenshot_path, output_path, font=None):
+def compose(bg_hex, verb, desc, screenshot_path, output_path, font=None,
+            strict=False):
     bg = hex_to_rgb(bg_hex)
     font_path, script, _ = pick_font(f"{verb}{desc}".upper(), font)
     check_rtl_support(script)
@@ -326,26 +434,31 @@ def compose(bg_hex, verb, desc, screenshot_path, output_path, font=None):
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (*bg, 255))
     draw = ImageDraw.Draw(canvas)
 
-    # ── 2. Measure text, then center between top of canvas & device ─
-    verb_font = fit_font(verb.upper(), MAX_VERB_W, VERB_SIZE_MAX, VERB_SIZE_MIN, font_path)
-    desc_font = ImageFont.truetype(font_path, DESC_SIZE)
-
-    # Measure total text block height (dry run at y=0)
-    dummy = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
-    m_y = 0
-    m_y = draw_centered(dummy, m_y, verb.upper(), verb_font)
-    m_y += VERB_DESC_GAP
-    text_height = draw_centered(dummy, m_y, desc.upper(), desc_font, max_w=MAX_TEXT_W)
+    # ── 2. Fit both headline lines, then verify the block actually fits ─
+    verb_font, verb_lines, desc_font, desc_lines, block_h = fit_block(
+        verb.upper(), desc.upper(), font_path)
+    reasons = _overflow_reasons(verb_lines, verb_font, desc_lines, desc_font,
+                                block_h)
+    if reasons:
+        detail = "\n".join(f"  - {r}" for r in reasons)
+        message = (
+            f"HEADLINE DOES NOT FIT: '{verb} / {desc}'\n{detail}\n"
+            f"  Shorten the headline for this locale (or split the descriptor "
+            f"into fewer words) — a clipped scaffold must not be sent to the "
+            f"image API."
+        )
+        if strict:
+            raise SystemExit(f"✗ {message}")
+        print(f"⚠ {message}", file=sys.stderr)
 
     # Device at fixed Y; text starts at fixed position
     device_y = DEVICE_Y
-    text_top = 200
 
     # Draw text at centered position
-    y = text_top
-    y = draw_centered(draw, y, verb.upper(), verb_font)
+    y = TEXT_TOP
+    y = draw_lines(draw, y, verb_lines, verb_font)
     y += VERB_DESC_GAP
-    draw_centered(draw, y, desc.upper(), desc_font, max_w=MAX_TEXT_W)
+    draw_lines(draw, y, desc_lines, desc_font)
     device_x = (CANVAS_W - DEVICE_W) // 2
     screen_x = device_x + BEZEL
     screen_y = device_y + BEZEL
@@ -410,6 +523,10 @@ def main():
     p.add_argument("--check", action="store_true",
                    help="Report the font/script/RTL support for this headline "
                         "and exit without composing anything")
+    p.add_argument("--strict", action="store_true",
+                   help="Fail (exit 1) instead of warning when the headline "
+                        "does not fit the safe area — use this in any pipeline "
+                        "that feeds a paid image API")
     args = p.parse_args()
 
     if args.check:
@@ -428,7 +545,8 @@ def main():
     if missing:
         p.error(f"the following arguments are required: {', '.join(missing)}")
 
-    compose(args.bg, args.verb, args.desc, args.screenshot, args.output, font=args.font)
+    compose(args.bg, args.verb, args.desc, args.screenshot, args.output,
+            font=args.font, strict=args.strict)
 
 
 if __name__ == "__main__":
