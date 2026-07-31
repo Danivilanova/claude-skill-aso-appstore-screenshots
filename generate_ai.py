@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.9"
-# dependencies = [
-#     "requests>=2.31",
-# ]
+# dependencies = []
 # ///
 """
 AI enhancement for App Store screenshot scaffolds, via the OpenRouter Image API.
 
 Sends a scaffold (and optionally a style-reference image) plus a prompt to an
 image model — GPT Image 2 by default — and writes the returned images to disk.
+
+Standard library only, so `python3 generate_ai.py` works on any machine with
+Python 3.9+ — no pip install, no virtualenv.
 
   export OPENROUTER_API_KEY=sk-or-...
 
@@ -33,13 +34,15 @@ import json
 import mimetypes
 import os
 import sys
-
-import requests
+import urllib.error
+import urllib.request
 
 API_URL = "https://openrouter.ai/api/v1/images"
 DEFAULT_MODEL = "openai/gpt-image-2"
 DEFAULT_QUALITY = "high"
 MAX_INPUTS = 16
+# High-quality image generation regularly runs past a minute; give it room.
+TIMEOUT_S = 600
 
 
 def data_url(path):
@@ -90,12 +93,27 @@ def post(payload, api_key):
     if title:
         headers["X-Title"] = title
 
-    response = requests.post(API_URL, headers=headers, json=payload, timeout=600)
-    if not response.ok:
+    request = urllib.request.Request(
+        API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_S) as response:
+            body = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")
         raise SystemExit(
-            f"OpenRouter returned HTTP {response.status_code}:\n{response.text}"
-        )
-    return response.json()
+            f"OpenRouter returned HTTP {exc.code} {exc.reason}:\n{detail}")
+    except urllib.error.URLError as exc:
+        raise SystemExit(f"Could not reach {API_URL}: {exc.reason}")
+
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError:
+        raise SystemExit(
+            f"OpenRouter returned a non-JSON response:\n{body[:2000]}")
 
 
 def save_images(body, output_dir, prefix, output_format, start_index):
