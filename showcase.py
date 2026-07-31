@@ -1,18 +1,50 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "Pillow>=10.0",
+# ]
+# ///
 """
 Showcase Image Generator
 Creates a preview image showing up to 3 final App Store screenshots
 side-by-side on a white background with an optional GitHub link at the bottom.
+
+The caption (the GitHub URL) is chrome around the screenshots, not headline
+text, so it deliberately ignores $ASO_FONT — that variable is a per-locale
+headline font for compose.py and would put, say, a Thai face on a Latin URL.
+The caption always uses the first available platform default.
 """
 
 import argparse
+import os
 from PIL import Image, ImageDraw, ImageFont
 
 # ── Layout ──────────────────────────────────────────────────────────
 PADDING = 60
 GAP = 40
 BOTTOM_BAR_H = 100
-FONT_PATH = "/Library/Fonts/SF-Pro-Display-Regular.otf"
+
+
+def _resolve_font():
+    """First existing per-platform default. Intentionally ignores $ASO_FONT."""
+    candidates = [
+        "/Library/Fonts/SF-Pro-Display-Regular.otf",
+        "/System/Library/Fonts/SFNS.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts", "arial.ttf"),
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path):
+            return path
+    raise SystemExit(
+        "No usable caption font found on this system. Install a basic sans "
+        "(e.g. `sudo apt install fonts-dejavu-core` on Linux).")
+
+
+FONT_PATH = _resolve_font()
 FONT_SIZE_MAX = 48
 FONT_SIZE_MIN = 16
 TEXT_COLOUR = "#000000"
@@ -82,7 +114,7 @@ def main():
         "--screenshots",
         nargs="+",
         required=True,
-        help="Paths to final screenshot PNGs (up to 3)",
+        help="Paths to the final screenshot images, .jpg or .png (up to 3)",
     )
     p.add_argument("--output", required=True, help="Output file path")
     p.add_argument("--github", default=None, help="GitHub URL to display at bottom")
