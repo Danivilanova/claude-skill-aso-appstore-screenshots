@@ -18,7 +18,7 @@ Before doing ANY codebase analysis, check the Claude Code memory system for all 
 
 **Check memory for each of these (in order):**
 
-1. **Benefits** — confirmed benefit headlines + target audience + app context
+1. **Benefits** — confirmed benefit headlines + target audience + app context + the set structure (which benefit is the HERO, which are FEATUREs, which is the SOCIAL/OUTCOME closer) and the real social-proof items collected for slide 1
 2. **Localizations** — confirmed App Store Connect locales and, per locale, the translated verb + descriptor for every benefit, plus the back-translations the user already approved
 3. **Screenshot analysis** — simulator screenshot file paths, ratings (Great/Usable/Retake), descriptions of what each shows, and any assessment notes
 4. **Pairings** — which simulator screenshot is paired with which benefit
@@ -85,6 +85,29 @@ After your analysis, present what you've learned and ask the user targeted quest
 
 Adapt your questions based on what you can and can't determine from the code. Don't ask questions the code already answers.
 
+### Step 2b: Hunt for numbers, and ask what social proof is REAL
+
+Two things separate a credible set from a generic one (playbook principles 2 and 3): **quantified claims** and **genuine social proof**. Both have to be collected here, before any headline is written.
+
+**Quantifiable angle per benefit.** Dig through the codebase for real figures you can stand behind: the number of items in a bundled dataset or seed file, supported formats, languages or integrations, a measured speed-up, free-tier limits, model counts, exercise counts. "500+ EXAM-LIKE QUESTIONS" outperforms "LOTS OF PRACTICE"; "x10 SPEED" outperforms "FASTER". Bring each number to the user for confirmation — the code may lag reality. If a benefit has no honest number, keep it qualitative rather than stretching one.
+
+**Social proof, asked for explicitly.** Ask the user, in one go:
+
+```
+Slide 1 works far better with real proof on it. Which of these do you actually have?
+
+- App Store rating + number of ratings (e.g. 4.8 ★, 48K ratings)
+- Download / user count (e.g. 17M+ downloads)
+- Press, podcast or channel mentions (logos you're allowed to use)
+- Awards or editorial features (Apple Editor's Choice, App of the Day…)
+- A category or niche claim you can defend ("#1 AI flashcards", "built for ADHD")
+- A quotable 5-star review (verbatim, with the reviewer's first name/initial)
+
+Anything you don't have, we simply leave out — no placeholders.
+```
+
+**Never invent proof.** Do not fabricate, estimate, round up or "illustrate" a rating, a download count, a press mention, an award or a review — not in a headline, not in a prompt, not as a placeholder that "the user can swap later". Fabricated proof is a review-rejection risk and a trust problem, and an image model will render whatever number you type as if it were real. If the user has no proof at all, say so plainly and build slide 1 on the outcome claim alone. Record every proof item, verbatim and attributed, in the benefits memory file.
+
 ### Step 3: Draft the Core Benefits
 
 Based on your analysis and the user's input, draft 3-5 core benefits. Each benefit MUST:
@@ -93,6 +116,8 @@ Based on your analysis and the user's input, draft 3-5 core benefits. Each benef
 2. **Focus on what the USER gets**, not what the app does technically
 3. **Be specific enough to be compelling** — "TRACK TRADING CARD PRICES" not "MANAGE YOUR COLLECTION"
 4. **Answer the user's unspoken question**: "Why should I download this instead of scrolling past?"
+5. **Carry its number when it has one** — fold the confirmed figure from Step 2b into the descriptor ("TRACK 40,000+ CARD PRICES") whenever it still reads as a 3–6 word headline
+6. **Stay inside 3–6 words total** (playbook principle 4), verb-first, one idea only — and short enough that `compose.py --strict` accepts it in every locale
 
 Present the benefits to the user in this format:
 
@@ -114,11 +139,38 @@ DO NOT proceed until the user explicitly confirms the benefits. This is an itera
 - Explain your reasoning — why a particular verb or phrasing converts better
 - The user has final say, but push back (politely) if they're choosing something generic over something specific
 
+### Step 4b: Lock the set structure (HERO → FEATURE → SOCIAL)
+
+A set is a story, not a list. Before pairing screenshots, decide the **role of every slide** and get the user to confirm it (playbook: narrative arcs + per-slide templates).
+
+- **Slide 1 — HERO.** The single biggest outcome claim, plus the real proof collected in Step 2b. Little or no full app UI. This is the slide that has to survive the thumbnail test, so it also carries the most search-relevant wording.
+- **Slides 2..N-1 — FEATURE.** The core loop **in the order a real user experiences it** — use → reward → customize, or input → practice → learn, or upload → choose → send. Do not order these by how impressive each feature is, and do not treat them as a feature inventory: if a benefit doesn't sit on the path a new user walks, it probably doesn't deserve a slide.
+- **Slide N — SOCIAL / OUTCOME.** The payoff: the result statistic, the share moment, the community cue, or the strongest proof block.
+
+Present it as a running order and confirm it:
+
+```
+Proposed set structure (5 slides):
+
+1. HERO      — PASS YOUR TEST FIRST TRY  + 4.8★ (12K ratings) + "98.7% pass rate"
+2. FEATURE   — PRACTICE 500+ REAL QUESTIONS      (first thing a new user does)
+3. FEATURE   — LEARN FROM EVERY MISTAKE          (the loop that keeps them)
+4. FEATURE   — TRACK YOUR READINESS              (the reason they come back)
+5. SOCIAL    — JOIN 200,000 DRIVERS              (payoff + proof)
+
+Does this match how someone actually uses the app?
+```
+
+If the confirmed benefits don't fill those roles — e.g. there's no natural payoff for the last slide — say so and reshape the benefit list here rather than forcing a slide later.
+
 ### Step 5: Save to Memory
 
 Once the user confirms the final benefits, save them to the Claude Code memory system. Create or update a memory file (e.g., `aso_benefits.md`) with:
 - The app name and bundle ID
 - The confirmed benefits list (in order), each with the full headline (ACTION VERB + BENEFIT DESCRIPTOR)
+- **The slide role of each benefit** (HERO / FEATURE / SOCIAL) and the running order the user confirmed
+- **Every real social-proof item**, verbatim and attributed (rating + count, downloads, press, awards, niche claim, quoted review) — plus an explicit note when the app has none, so a later run doesn't re-ask or improvise
+- **The confirmed numbers** behind any quantified benefit, and where each came from
 - The target audience
 - Key app context (what the app does, niche, competitors mentioned)
 - Any reasoning or user preferences noted during refinement (e.g., "user prefers 'TRACK' over 'MONITOR'")
@@ -278,28 +330,43 @@ For any screenshot rated **Retake**, AND for any benefit that has no suitable sc
 
 Be opinionated. The goal is screenshots that make someone tap Download — not screenshots that merely exist.
 
-### Step 4: Pair Screenshots with Benefits
+### Step 4: Pair Screenshots with Benefits — following the set's arc
 
-For each confirmed benefit, recommend the best simulator screenshot pairing. Only pair screenshots rated **Great** or **Usable**. Consider:
+Pair against the **slide roles locked in Benefit Discovery Step 4b**, not just against the benefit text. Each role wants a different kind of screenshot:
+
+- **HERO (slide 1)** — needs the *least* UI of the set. Pick the screenshot that reads instantly at thumbnail size even when it ends up small, angled or partially cropped behind the claim and the proof block. A screen with one strong, recognisable visual beats a dense one here; if every candidate is dense, say so and note that the hero will lean on the claim and proof rather than the UI.
+- **FEATURE (slides 2..N-1)** — pick the screen showing the exact moment of that step in the loop, and note **which single UI region matters** (the card, the control, the row). Generation crops and zooms to that region rather than showing the whole screen, so "the pricing row on this screen" is a more useful pairing note than the filename alone.
+- **SOCIAL / OUTCOME (last slide)** — the payoff screen: the share sheet, the result summary, the community or streak view.
+
+Then the usual criteria:
 
 - **Relevance**: Does this screenshot directly demonstrate the benefit? A "TRACK PRICES" benefit needs a screen showing prices, not settings.
 - **Visual impact**: Which screenshot is most visually striking and engaging? Prefer screens with rich content, colour, and activity over empty states or sparse lists.
 - **Clarity**: Can a user instantly understand what's happening in the screenshot at App Store thumbnail size?
 - **Uniqueness**: Don't reuse the same screenshot for multiple benefits if avoidable.
 
+Also flag, per pairing, the two things generation will need:
+- **The breakout candidate** — the one card, panel or control that will be lifted out of the device frame (playbook principle 8; one per slide, always).
+- **The gesture, if the benefit is an interaction** — swipe, tap, drag, long-press — so the enhancement can render the interaction and its colour semantics rather than only its result (principle 9).
+
 Present the pairings to the user:
 
 ```
 Here's how I'd pair your screenshots with each benefit:
 
-1. [BENEFIT TITLE] → [screenshot filename] (rated: Great)
+1. [HERO] [BENEFIT TITLE] → [screenshot filename] (rated: Great)
    Why: [brief reasoning — what makes this the best match]
+   Proof on this slide: [real proof items from memory, or "none available"]
 
-2. [BENEFIT TITLE] → [screenshot filename] (rated: Usable)
+2. [FEATURE] [BENEFIT TITLE] → [screenshot filename] (rated: Usable)
    Why: [brief reasoning]
+   Zoom to: [the specific UI region] · Breakout: [the card/control] · Gesture: [swipe left / none]
    💡 Could be even better if: [optional improvement suggestion]
 
 ...
+
+N. [SOCIAL] [BENEFIT TITLE] → [screenshot filename] (rated: Great)
+   Why: [the payoff this closes on]
 ```
 
 If no suitable screenshot exists for a benefit (all candidates were rated Retake), clearly say so and repeat the retake guidance for that specific benefit.
@@ -314,6 +381,7 @@ Once pairings are confirmed, save the full screenshot analysis and pairings to t
 
 - **Every simulator screenshot provided** — file path, what it shows, rating (Great/Usable/Retake), and assessment notes
 - **The confirmed pairings** — which benefit maps to which screenshot file, and why
+- **The slide role of each pairing** (HERO / FEATURE / SOCIAL), plus the zoom region, breakout candidate and gesture noted for it — generation reads these straight into its prompts
 - **Retake notes** — any screenshots that were rejected and why, so the user has context if they come back to fix them
 
 This is critical for resumability. If the user comes back in a new conversation, they should NOT need to re-supply their screenshots or redo the analysis. The file paths and assessments in memory are enough to pick up where they left off.
