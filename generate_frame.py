@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "Pillow>=10.0",
+# ]
+# ///
 """
 Generate iPhone device frame template PNG.
 Output: assets/device_frame.png — standalone device image (not positioned on canvas).

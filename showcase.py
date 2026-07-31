@@ -1,18 +1,48 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "Pillow>=10.0",
+# ]
+# ///
 """
 Showcase Image Generator
 Creates a preview image showing up to 3 final App Store screenshots
 side-by-side on a white background with an optional GitHub link at the bottom.
+
+The caption font follows $ASO_FONT when set, otherwise the first available
+platform default.
 """
 
 import argparse
+import os
 from PIL import Image, ImageDraw, ImageFont
 
 # ── Layout ──────────────────────────────────────────────────────────
 PADDING = 60
 GAP = 40
 BOTTOM_BAR_H = 100
-FONT_PATH = "/Library/Fonts/SF-Pro-Display-Regular.otf"
+
+
+def _resolve_font():
+    """First existing font from $ASO_FONT then per-platform defaults."""
+    candidates = [
+        os.environ.get("ASO_FONT"),
+        "/Library/Fonts/SF-Pro-Display-Regular.otf",
+        "/System/Library/Fonts/SFNS.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts", "arial.ttf"),
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path):
+            return path
+    raise SystemExit(
+        "No usable caption font found. Set ASO_FONT=/path/to/font.ttf")
+
+
+FONT_PATH = _resolve_font()
 FONT_SIZE_MAX = 48
 FONT_SIZE_MIN = 16
 TEXT_COLOUR = "#000000"

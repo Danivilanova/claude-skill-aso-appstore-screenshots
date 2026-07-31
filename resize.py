@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "Pillow>=10.0",
+# ]
+# ///
 """
 Cross-platform screenshot resize for App Store / Play Store.
 Replaces macOS-only `sips` commands with Pillow (already a dependency).
 
 Crops to the target aspect ratio (center-crop, preserving the top edge
 so headlines stay put) then resizes to exact pixel dimensions.
+
+The output keeps the input's extension unless --ext is given, which is how
+the pipeline turns AI-generated PNG intermediates into the .jpg files that
+get uploaded to App Store Connect.
 """
 
 import argparse
@@ -55,10 +65,17 @@ def main():
         default="-resized",
         help="Suffix for output files (default: -resized)",
     )
+    p.add_argument(
+        "--ext",
+        default=None,
+        help="Output extension, e.g. jpg (default: keep the input's)",
+    )
     args = p.parse_args()
 
     for input_path in args.inputs:
         base, ext = os.path.splitext(input_path)
+        if args.ext:
+            ext = "." + args.ext.lstrip(".")
         output_path = f"{base}{args.suffix}{ext}"
         resize(input_path, output_path, args.width, args.height)
 
