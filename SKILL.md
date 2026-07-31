@@ -1,6 +1,6 @@
 ---
 name: aso-appstore-screenshots
-description: Generate high-converting App Store screenshots by analyzing your app's codebase, discovering core benefits, and creating ASO-optimized screenshot images using Nano Banana Pro.
+description: Generate high-converting App Store screenshots — in every locale you ship — by analyzing your app's codebase, discovering core benefits, and creating ASO-optimized screenshot images with GPT Image 2 via OpenRouter.
 user-invocable: true
 ---
 
@@ -17,10 +17,11 @@ Before doing ANY codebase analysis, check the Claude Code memory system for all 
 **Check memory for each of these (in order):**
 
 1. **Benefits** — confirmed benefit headlines + target audience + app context
-2. **Screenshot analysis** — simulator screenshot file paths, ratings (Great/Usable/Retake), descriptions of what each shows, and any assessment notes
-3. **Pairings** — which simulator screenshot is paired with which benefit
-4. **Brand colour** — the confirmed background colour (name + hex)
-5. **Generated screenshots** — file paths to generated and resized screenshots, which benefits they correspond to
+2. **Localizations** — confirmed App Store Connect locales and, per locale, the translated verb + descriptor for every benefit, plus the back-translations the user already approved
+3. **Screenshot analysis** — simulator screenshot file paths, ratings (Great/Usable/Retake), descriptions of what each shows, and any assessment notes
+4. **Pairings** — which simulator screenshot is paired with which benefit
+5. **Brand colour** — the confirmed background colour (name + hex)
+6. **Generated screenshots** — file paths to generated and resized screenshots, keyed by `(locale, benefit)`
 
 **Present a status summary to the user** showing what's saved and what phase they're at. For example:
 
@@ -28,12 +29,13 @@ Before doing ANY codebase analysis, check the Claude Code memory system for all 
 Here's where we left off:
 
 ✅ Benefits (3 confirmed): TRACK CARD PRICES, SEARCH ANY CARD, BUILD YOUR COLLECTION
+✅ Locales: en-US (base), es-ES, ja — translations confirmed
 ✅ Screenshots analysed (5 provided, 4 rated Great/Usable)
 ✅ Pairings confirmed
 ✅ Brand colour: Electric Blue (#2563EB)
-⏳ Generation: 2 of 3 screenshots generated
+⏳ Generation: en-US set complete, es-ES 2 of 3 generated, ja not started
 
-Ready to continue generating screenshot 3, or would you like to change anything?
+Ready to continue with es-ES screenshot 3, or would you like to change anything?
 ```
 
 **Then let the user decide what to do:**
@@ -123,9 +125,117 @@ This means the user won't need to redo benefit discovery in future conversations
 
 ---
 
+## LOCALIZATION
+
+App Store Connect stores one screenshot set per **locale**, not per language. This phase decides which locales to ship, translates each benefit's headline for them, and gets the user to sign off on the translations before a single image is generated.
+
+**IMPORTANT:** Only run this phase if no confirmed localizations exist in memory, or if the user explicitly asks to add, remove, or change locales.
+
+### Step 1: Ask which locales to ship
+
+Ask the user which App Store Connect locales they publish their app in. Make these points explicit:
+
+- **The default is English only.** If they don't localize, confirm a single English locale and move on.
+- **English is always in the set**, even if they don't mention it — it is the App Store's fallback locale and it is the base language for this workflow.
+- They can name languages informally; you will map them to locale codes in Step 2.
+
+### Step 2: Resolve every language to an App Store Connect locale code
+
+Never use a bare ISO 639-1 code (`es`, `pt`, `fr`) when App Store Connect expects a region-qualified one. **When the user names a bare language that maps to more than one ASC locale, ask which one(s) they actually ship** — the copy differs between them, and each is a separate upload slot.
+
+| User says | Ask which of |
+|-----------|--------------|
+| "English" | en-US, en-GB, en-AU, en-CA |
+| "Spanish" | es-ES (Spain), es-MX (Mexico / Latin America) |
+| "Portuguese" | pt-BR (Brazil), pt-PT (Portugal) |
+| "French" | fr-FR (France), fr-CA (Canada) |
+| "Chinese" | zh-Hans (Simplified), zh-Hant (Traditional) |
+
+They can ship several of a group — es-ES *and* es-MX is a normal choice, with different wording in each.
+
+**Valid App Store Connect locale codes:**
+
+`en-US`, `en-GB`, `en-AU`, `en-CA`, `es-ES`, `es-MX`, `pt-BR`, `pt-PT`, `fr-FR`, `fr-CA`, `de-DE`, `it`, `ja`, `ko`, `zh-Hans`, `zh-Hant`, `nl-NL`, `sv`, `da`, `fi`, `no`, `pl`, `ru`, `tr`, `ar-SA`, `th`, `vi`, `id`, `ms`, `hi`, `el`, `cs`, `sk`, `hu`, `ro`, `uk`, `hr`, `ca`, `he`.
+
+Note that some are region-qualified (`de-DE`, `nl-NL`, `ar-SA`) and some are not (`it`, `ja`, `ko`, `sv`, `ru`). Use exactly the codes above — they are the folder names, and they map 1:1 to an App Store Connect upload slot.
+
+Confirm the resolved set back to the user before continuing:
+
+```
+Locales to generate:
+  1. en-US  (base — generated first, becomes the reference set)
+  2. es-ES
+  3. ja
+
+All three use the SAME pixel dimensions (1290×2796 for iPhone 6.7") — only the
+headline text changes per locale.
+
+Proceed with these 3 locales?
+```
+
+Block on confirmation.
+
+### Step 3: Check font and script support per locale
+
+The headline is rendered by Pillow inside `compose.py`, so **any script works as long as a font with those glyphs resolves on this machine**. compose.py detects the script of the headline and automatically substitutes a system font when the default (SF Pro Display Black / Noto Sans Black / Arial Bold) lacks the glyphs — Hiragino Sans or Noto Sans CJK for `ja` / `ko` / `zh-Hans` / `zh-Hant`, SF Arabic or Noto Naskh Arabic for `ar-SA`, SF Hebrew or Noto Sans Hebrew for `he`, Thonburi or Noto Sans Thai for `th`, and so on.
+
+For every non-Latin locale, run the check before generating anything (it costs nothing and touches no API):
+
+```bash
+SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
+python3 "$SKILL_DIR/compose.py" --check --verb "[VERB]" --desc "[DESCRIPTOR]"
+```
+
+It prints the resolved font, the detected script, whether a substitution happened, whether Pillow has libraqm, and whether the locale is RTL-ready. Act on the result:
+
+- **`substituted: True`** — fine, that is the fallback doing its job. Note the font in memory.
+- **Missing-glyph warning with no substitution** — no font on this machine covers that script. Tell the user, and ask them to install one and set `ASO_FONT` to it (e.g. `export ASO_FONT="/path/to/NotoSansCJK-Black.ttc"`) before generating that locale. `ASO_FONT` may be set per locale.
+- **`rtl-ready: False`** (Arabic `ar-SA`, Hebrew `he`) — **stop and ask the user before generating this locale.** Pillow only shapes and reorders RTL text when it is built with **libraqm**. Without it, Arabic letters render isolated and in visual reverse order — unusable, and not something the AI enhancement step can fix, because it must preserve the scaffold's text verbatim. Say so plainly and offer the options: install a Pillow build with libraqm (`brew install libraqm` then reinstall Pillow on macOS; `libraqm0`/`libraqm-dev` on Debian/Ubuntu), skip the locale for now, or proceed anyway knowing the headline will be wrong. Only continue on an explicit yes.
+
+### Step 4: Translate the headlines
+
+For every confirmed benefit, translate **both the action verb and the descriptor** into each non-base locale. Constraints:
+
+- **Stay short.** compose.py auto-shrinks the verb from 256px down to 150px to fit, and wraps the descriptor — but a headline that wraps to three lines loses its punch. German and Finnish in particular run long; pick the concise option.
+- **Stay uppercase-friendly.** compose.py uppercases everything. Some scripts have no case (Japanese, Chinese, Korean, Arabic, Hebrew, Thai, Hindi) — that is fine, uppercasing is a no-op there; just make sure the wording reads as a headline, not a sentence.
+- **Preserve the imperative / action-verb feel.** "TRACK" → "SIGUE" (es-ES) / "SUIVEZ" (fr-FR) / "追跡" (ja). Don't drift into a noun or a passive construction.
+- **Translate the benefit, not the words.** A natural phrasing that lands the same promise beats a literal rendering.
+- **Regional variants are not copies.** es-ES and es-MX, pt-BR and pt-PT, en-US and en-GB get genuinely regional wording, not the same string twice.
+
+### Step 5: Back-translate and confirm
+
+For each non-base locale, independently back-translate the verb + descriptor into English and show the user a round-trip table:
+
+```
+es-ES:
+  TRACK CARD PRICES → SIGUE LOS PRECIOS DE TUS CARTAS → "TRACK YOUR CARD PRICES" ✓
+  SEARCH ANY CARD   → BUSCA CUALQUIER CARTA          → "SEARCH ANY CARD" ✓
+
+ja:
+  TRACK CARD PRICES → カード価格を追跡 → "TRACK CARD PRICES" ✓
+  SEARCH ANY CARD   → 全カードを検索   → "SEARCH ALL CARDS" ⚠ (drift: "all" vs "any")
+```
+
+Flag every line where the back-translation drifts, and offer alternatives. DO NOT generate anything until the user explicitly approves each locale's translations. They can approve as-is, edit any line, or ask for alternatives.
+
+### Step 6: Save to memory
+
+Save the approved localizations to the Claude Code memory system in `aso_localizations.md`:
+
+- **Confirmed locales** — the ASC codes, which one is the base, and the order to generate them in
+- **Per-`(locale, benefit)` rows** — the translated verb, the translated descriptor, the source English headline, and the approved back-translation
+- **Font notes per locale** — any `ASO_FONT` value or substituted font that locale needs, plus the RTL/libraqm decision if one was made
+- **User edits** — any line the user rewrote or chose from alternatives, so a future run doesn't suggest changing it back
+
+This is what makes the workflow resumable per locale: a later conversation should never re-translate or re-confirm text that is already approved.
+
+---
+
 ## SCREENSHOT PAIRING
 
 Once benefits are confirmed, you need simulator screenshots to place inside the device frames.
+
+**Pairings are locale-independent.** The same simulator screenshot is reused for a given benefit in every locale — only the headline text changes. (If the user has localized in-app screenshots per language, they can supply a per-locale screenshot for a benefit; note it in the pairings memory and use it for that locale's scaffold.)
 
 ### Step 1: Collect Simulator Screenshots
 
@@ -210,24 +320,38 @@ This is critical for resumability. If the user comes back in a new conversation,
 
 ## GENERATION
 
-Once benefits and screenshot pairings are confirmed, generate the final App Store screenshots using Nano Banana Pro (via the Gemini MCP server).
+Once benefits, localizations and screenshot pairings are confirmed, generate the final App Store screenshots. AI enhancement runs through **`generate_ai.py`**, which calls the **OpenRouter Image API** (GPT Image 2 by default). No MCP server is involved.
 
 ### Prerequisites Check
 
-Before generating, verify the Gemini MCP server is available by checking that the `generate_image` tool exists. If it is NOT available, tell the user:
+Before generating, verify the API key is present:
 
-```
-⚠️ Gemini MCP server not detected. To generate screenshots, you need to set it up:
-
-1. Install: npm install -g gemini-mcp
-2. Add to your Claude Code MCP config (~/.claude/settings.json or project .mcp.json)
-3. Restart Claude Code
-4. Run this skill again
-
-See: https://github.com/nicobailon/gemini-mcp for setup instructions.
+```bash
+test -n "$OPENROUTER_API_KEY" && echo "OPENROUTER_API_KEY: set" || echo "OPENROUTER_API_KEY: MISSING"
 ```
 
-Do NOT proceed with generation if the tool is unavailable.
+If it is missing, tell the user:
+
+```
+⚠️ OPENROUTER_API_KEY is not set. Image generation needs it:
+
+1. Create a key at https://openrouter.ai/keys
+2. export OPENROUTER_API_KEY=sk-or-...     (add it to your shell profile to persist)
+3. Run this skill again
+
+Optional:
+  ASO_IMAGE_MODEL    default openai/gpt-image-2
+                     alternatives: google/gemini-3.1-flash-image ("Nano Banana 2"),
+                     google/gemini-3-pro-image
+  ASO_IMAGE_QUALITY  default high
+
+Rough cost: a 5–10 screenshot set is about $1–2 with gpt-image-2 at high quality,
+or about $0.35–0.80 with Nano Banana 2 — times the number of locales.
+```
+
+Do NOT proceed with generation if the key is unavailable.
+
+**Before generating a multi-locale set, tell the user what it will cost**: generation is per screenshot *per locale*, so 5 benefits × 3 locales × 3 variants is 45 images. Confirm before starting, and always generate one locale at a time so the spend is incremental and reviewable.
 
 ### App Store Connect Dimensions
 
@@ -241,7 +365,9 @@ App Store Connect is **very strict** about image dimensions — it will reject s
 
 Default to **1290 x 2796px** (iPhone 6.7") unless the user specifies otherwise. Ask the user which size(s) they need. Up to 10 screenshots can be uploaded per display size.
 
-**IMPORTANT — Aspect ratio mismatch**: Apple's required dimensions are narrower than standard 9:16 (~0.461 ratio vs 0.5625). Nano Banana generates at preset aspect ratios, so we generate **wider than needed** at 9:16 with 4K resolution, then **crop and resize** down to exact Apple dimensions in a post-processing step (see Step 4 below). This approach avoids stretching — we remove excess width instead.
+**Every locale uses the same pixel dimensions.** A locale is a separate upload slot, not a separate format — only the headline text differs between `en-US`, `es-ES` and `ja`.
+
+**IMPORTANT — Aspect ratio mismatch**: Apple's required dimensions are narrower than standard 9:16 (~0.461 ratio vs 0.5625). Image models generate at preset aspect ratios, so we generate **wider than needed** at 9:16, then **crop and resize** down to exact Apple dimensions in a post-processing step (see Step 4 below). This approach avoids stretching — we remove excess width instead.
 
 ### Screenshot Format Specification
 
@@ -278,47 +404,58 @@ Breakout elements can give screenshots personality and make them feel dynamic. B
 
 Generation uses a two-stage approach for consistency:
 1. **Stage 1 (Scaffold)**: compose.py creates a deterministic local image with the correct text, device frame, and screenshot. This guarantees consistent layout across all screenshots.
-2. **Stage 2 (Enhance)**: The scaffold is sent to Nano Banana Pro to add breakout elements, depth, and visual polish.
+2. **Stage 2 (Enhance)**: The scaffold is sent to the image model through `generate_ai.py` to add breakout elements, depth, and visual polish.
 
-**The first approved screenshot becomes the style template for the entire set.** All subsequent screenshots are enhanced using both their own scaffold (for layout) AND the first approved screenshot (for style). This ensures every screenshot in the set has the same device frame rendering, text treatment, background style, and overall visual quality — so when viewed side-by-side in the App Store, they look like a cohesive professional set.
+**The first approved screenshot becomes the style template — per locale.** Every later screenshot in that locale is enhanced from both its own scaffold (for layout) AND that locale's first approved screenshot (for style), so the set looks cohesive when swiped through in the App Store.
 
-For each benefit + screenshot pair, generate **3 enhanced versions in parallel** so the user can pick the best one.
+**Never use one locale's approved screenshot as the style template for another locale.** The model reads text out of the reference image, and a Spanish or Japanese set will end up with English words leaking back into it. Each locale grows its own template from its own first screenshot. (The base locale's approved screenshot MAY be passed as an *additional* reference after that locale's own template exists, but the same-locale template must always come first.)
+
+**Generate one locale at a time, and finish it before starting the next.** Start with the base locale (usually `en-US`) — it is the reference set, and any art-direction fixes are cheaper to make there before they are replicated.
+
+For each benefit + screenshot pair in the active locale, generate **3 variants** so the user can pick the best one.
+
+Throughout the rest of this phase, `[LOCALE]` is the active App Store Connect locale code (`en-US`, `es-ES`, `ja`, …).
 
 **Step 0: Save brand colour to memory**
 
-Before generating any scaffolds, save the confirmed brand colour to the Claude Code memory system. Create or update the benefits memory file (e.g., `aso_benefits.md`) to include the brand colour name and hex code. This ensures the colour persists across conversations and is available immediately if the user resumes later.
+Before generating any scaffolds, save the confirmed brand colour to the Claude Code memory system. Create or update the benefits memory file (e.g., `aso_benefits.md`) to include the brand colour name and hex code. This ensures the colour persists across conversations and is available immediately if the user resumes later. The brand colour is shared by every locale.
 
-**Step 1: Ask the user which font to use**
+**Step 1: Settle the font for this locale**
 
-Ask the user which font they'd like for the screenshot headlines. The script auto-detects a platform default (SF Pro Display Black on macOS, Noto Sans Black on Linux, Arial Bold on Windows), so if the user says "default" or doesn't have a preference, omit the `--font` flag.
+Ask the user once which font they want for the headlines. compose.py auto-detects a platform default (SF Pro Display Black on macOS, Noto Sans Black on Linux, Arial Bold on Windows), so if they say "default" or have no preference, omit `--font`. They can give a font filename (e.g., `Inter-Black.otf`) or a full path. Save the choice to memory alongside the brand colour.
 
-They can provide a font filename (e.g., `Inter-Black.otf`) or a full path (e.g., `/usr/share/fonts/truetype/noto/NotoSans-Black.ttf`). Save the chosen font to memory alongside the brand colour so it persists across conversations.
+Then apply what the LOCALIZATION phase recorded for this locale:
+- If that locale needs a specific font (a CJK/Arabic/Hebrew/Thai/Devanagari face), export `ASO_FONT` for the compose call instead of hard-coding it into the chosen custom font, or pass `--font` with that path.
+- compose.py substitutes a script-appropriate system font automatically if the chosen one lacks the glyphs, and prints a warning when it does. Read the warnings — a "will render as tofu" line means STOP and fix the font before spending anything on generation.
+- For `ar-SA` / `he`, honour the libraqm decision recorded in memory. If `rtl-ready` was False and the user has not explicitly accepted it, do not generate that locale.
 
-**Step 2: Create the scaffold with compose.py**
+**Step 2: Create the scaffolds with compose.py**
 
-The compose.py script lives in the skill directory. Run it to create the deterministic base screenshot. If the user chose a custom font, pass `--font "filename.otf"` to each compose.py call. If using the default, omit `--font`.
+The compose.py script lives in the skill directory. Run it to create the deterministic base screenshots for the active locale, using that locale's translated verb and descriptor from `aso_localizations.md`.
 
-**IMPORTANT — Batch all 3 scaffolds into a single Bash call** to minimize permission prompts. Chain the commands with `&&` so the user only needs to approve once:
+**IMPORTANT — Batch all scaffolds for the locale into a single Bash call** to minimize permission prompts. Chain the commands with `&&` so the user only needs to approve once:
 
 ```bash
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
-mkdir -p screenshots/01-[benefit-slug] screenshots/02-[benefit-slug] screenshots/03-[benefit-slug] && \
+mkdir -p screenshots/[LOCALE]/01-[benefit-slug] screenshots/[LOCALE]/02-[benefit-slug] screenshots/[LOCALE]/03-[benefit-slug] && \
 python3 "$SKILL_DIR/compose.py" \
-  --bg "[HEX CODE]" --verb "[VERB 1]" --desc "[DESC 1]" \
+  --bg "[HEX CODE]" --verb "[VERB 1 in LOCALE]" --desc "[DESC 1 in LOCALE]" \
   --font "[FONT_FILE or omit flag]" \
   --screenshot [path/to/screenshot-1.png] \
-  --output screenshots/01-[benefit-slug]/scaffold.png && \
+  --output screenshots/[LOCALE]/01-[benefit-slug]/scaffold.png && \
 python3 "$SKILL_DIR/compose.py" \
-  --bg "[HEX CODE]" --verb "[VERB 2]" --desc "[DESC 2]" \
+  --bg "[HEX CODE]" --verb "[VERB 2 in LOCALE]" --desc "[DESC 2 in LOCALE]" \
   --font "[FONT_FILE or omit flag]" \
   --screenshot [path/to/screenshot-2.png] \
-  --output screenshots/02-[benefit-slug]/scaffold.png && \
+  --output screenshots/[LOCALE]/02-[benefit-slug]/scaffold.png && \
 python3 "$SKILL_DIR/compose.py" \
-  --bg "[HEX CODE]" --verb "[VERB 3]" --desc "[DESC 3]" \
+  --bg "[HEX CODE]" --verb "[VERB 3 in LOCALE]" --desc "[DESC 3 in LOCALE]" \
   --font "[FONT_FILE or omit flag]" \
   --screenshot [path/to/screenshot-3.png] \
-  --output screenshots/03-[benefit-slug]/scaffold.png
+  --output screenshots/[LOCALE]/03-[benefit-slug]/scaffold.png
 ```
+
+(Prefix the whole command with `ASO_FONT="[/path/to/locale-font]" ` when that locale needs a specific face.)
 
 This outputs pixel-perfect 1290×2796 PNGs with:
 - Bold white headline text (verb auto-sized to fit canvas width)
@@ -326,24 +463,41 @@ This outputs pixel-perfect 1290×2796 PNGs with:
 - Simulator screenshot composited inside the frame
 - Solid background colour
 
-The scaffolds are internal intermediates — do NOT show them to the user or ask for confirmation. Proceed immediately to Step 3 (Nano Banana enhancement).
+The scaffolds are internal intermediates — do NOT show them to the user or ask for confirmation. Proceed immediately to Step 3 (AI enhancement).
 
-**Step 3: Enhance with Nano Banana Pro (3 versions in parallel)**
+**Step 3: Enhance with generate_ai.py (3 variants)**
 
-Make **3 parallel `edit_image` calls**. The parallel execution is critical — always fire all 3 calls in a single message, never sequentially.
+`generate_ai.py` posts the scaffold plus your prompt to the OpenRouter Image API and writes the returned PNGs to `--output-dir`. One call produces all 3 variants (`--n 3`); there is no need to fan out parallel calls.
 
-For each of the 3 calls, use:
-- `prompt`: Enhancement instructions (see prompt templates below — different for first vs subsequent screenshots)
-- `images`: See below for which images to include
-- `outputPath`: Different path for each version:
-  - `./screenshots/01-[benefit-slug]/v1.jpg`
-  - `./screenshots/01-[benefit-slug]/v2.jpg`
-  - `./screenshots/01-[benefit-slug]/v3.jpg`
+Write the enhancement prompt to a file first — the prompts below are long, and `--prompt-file` avoids shell-quoting damage:
 
-#### First screenshot (no approved template yet)
+```bash
+SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
+cat > screenshots/[LOCALE]/01-[benefit-slug]/prompt.txt <<'PROMPT'
+[ENHANCEMENT PROMPT — see templates below]
+PROMPT
+python3 "$SKILL_DIR/generate_ai.py" \
+  --prompt-file screenshots/[LOCALE]/01-[benefit-slug]/prompt.txt \
+  --input screenshots/[LOCALE]/01-[benefit-slug]/scaffold.png \
+  --output-dir screenshots/[LOCALE]/01-[benefit-slug] \
+  --n 3
+```
+
+This writes `v1.png`, `v2.png`, `v3.png` into the benefit folder and prints the run's cost.
+
+Notes on the flags:
+- `--input` is repeatable and order matters: the scaffold ALWAYS comes first, style references after it.
+- `--n 3` is the default. `google/*` models only accept one image per request, so the script loops internally — the flag behaves the same either way.
+- `--model` / `--quality` override `ASO_IMAGE_MODEL` / `ASO_IMAGE_QUALITY`. Leave them alone unless the user asks for a cheaper or different model.
+- `--dry-run` prints the request payload without calling the API — useful to sanity-check a prompt or debug a failure without spending.
+
+#### First screenshot of a locale (no approved template yet for it)
 
 Use only the scaffold as input:
-- `images`: The scaffold via `filePath` pointing to `screenshots/01-[benefit-slug]/scaffold.png`
+
+```
+--input screenshots/[LOCALE]/01-[benefit-slug]/scaffold.png
+```
 
 **First screenshot prompt template:**
 
@@ -368,11 +522,17 @@ ENHANCE AND POLISH:
 The final result should look like it was designed by a professional App Store screenshot agency — polished, high-converting, and visually striking. No watermarks, no extra text, no app store UI chrome.
 ```
 
-#### Subsequent screenshots (after first is approved)
+#### Subsequent screenshots (after the locale's first is approved)
 
-Use **two images** as input:
-1. The **scaffold** for this benefit (`screenshots/0N-[benefit-slug]/scaffold.png`) — defines the layout
-2. The **first approved screenshot** (`screenshots/final/01-[first-benefit-slug].jpg`) — defines the style template
+Use **two images** as input, scaffold first:
+
+```
+--input screenshots/[LOCALE]/0N-[benefit-slug]/scaffold.png \
+--input screenshots/final/[LOCALE]/01-[first-benefit-slug].jpg
+```
+
+1. The **scaffold** for this benefit in this locale — defines the layout
+2. The **first approved screenshot of this same locale** — defines the style template. Never point this at another locale's screenshot: the model reads its text and leaks the source language into the output.
 
 **Subsequent screenshot prompt template:**
 
@@ -399,64 +559,51 @@ The result must look like it was designed alongside the style template as part o
 No watermarks, no extra text, no app store UI chrome.
 ```
 
-**IMPORTANT — Consistency enforcement**: The scaffold guarantees consistent layout. The style template guarantees consistent visual treatment. If Nano Banana changes the text, layout, or deviates from the style template, regenerate.
+**IMPORTANT — Consistency enforcement**: The scaffold guarantees consistent layout. The style template guarantees consistent visual treatment. If the model changes the headline text, alters the layout, or deviates from the style template, regenerate. For a localized set, check specifically that the headline is still in the locale's language and spelled exactly as the scaffold has it — a leaked English word means the wrong style reference was passed.
 
-**Step 4: IMMEDIATELY crop and resize ALL 3 versions to App Store dimensions**
+**Step 4: IMMEDIATELY crop and resize ALL 3 variants to App Store dimensions**
 
-⚠️ **You MUST run this immediately after all 3 `edit_image` calls complete. Do NOT show the user any image before running this. The raw Nano Banana output is always the wrong dimensions for App Store Connect.**
+⚠️ **You MUST run this immediately after `generate_ai.py` returns. Do NOT show the user any image before running this. The raw model output is 9:16 — always the wrong dimensions for App Store Connect.**
 
 **CRITICAL — Use exactly ONE Bash tool call for all 3 crop/resize operations.** Do NOT make 3 separate Bash calls. Do NOT use parallel Bash calls. Use the single command below so the user only sees one permission prompt.
-
-**Option A — Cross-platform (recommended, works on macOS/Linux/Windows):**
 
 ```bash
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
 python3 "$SKILL_DIR/resize.py" \
-  --width 1290 --height 2796 \
-  screenshots/01-[benefit-slug]/v1.jpg \
-  screenshots/01-[benefit-slug]/v2.jpg \
-  screenshots/01-[benefit-slug]/v3.jpg
+  --width 1290 --height 2796 --ext jpg \
+  screenshots/[LOCALE]/01-[benefit-slug]/v1.png \
+  screenshots/[LOCALE]/01-[benefit-slug]/v2.png \
+  screenshots/[LOCALE]/01-[benefit-slug]/v3.png
 ```
 
-The resize.py script (Pillow-based) crops to the correct aspect ratio (center-crop with top edge preserved so headlines stay put) and resizes to exact pixel dimensions. Each resized image is saved alongside the original with a `-resized` suffix (e.g., `v1-resized.jpg`).
+resize.py (Pillow-based, works on macOS/Linux/Windows) crops to the correct aspect ratio — sides trimmed equally, top edge preserved so the headline stays put — then resizes to exact pixel dimensions. `--ext jpg` converts the AI's PNG intermediates into the `.jpg` files App Store Connect gets, saved alongside the originals with a `-resized` suffix (`v1-resized.jpg`).
 
-**Option B — macOS only (using sips):**
+Target dimensions per display size — adjust `--width` and `--height`:
+- iPhone 6.5": `--width 1242 --height 2688`
+- iPhone 6.7" (default): `--width 1290 --height 2796`
+- iPhone 6.9": `--width 1320 --height 2868`
 
-```bash
-TARGET_W=1290 && TARGET_H=2796 && \
-for INPUT in screenshots/01-[benefit-slug]/v1.jpg screenshots/01-[benefit-slug]/v2.jpg screenshots/01-[benefit-slug]/v3.jpg; do
-  OUTPUT="${INPUT%.jpg}-resized.jpg"
-  cp "$INPUT" "$OUTPUT"
-  W=$(sips -g pixelWidth "$OUTPUT" | tail -1 | awk '{print $2}')
-  H=$(sips -g pixelHeight "$OUTPUT" | tail -1 | awk '{print $2}')
-  CROP_W=$(python3 -c "print(round($H * $TARGET_W / $TARGET_H))")
-  OFFSET_X=$(python3 -c "print(round(($W - $CROP_W) / 2))")
-  sips --cropOffset 0 $OFFSET_X --cropToHeightWidth $H $CROP_W "$OUTPUT"
-  sips -z $TARGET_H $TARGET_W "$OUTPUT"
-  echo "--- $OUTPUT ---"
-  sips -g pixelWidth -g pixelHeight "$OUTPUT"
-done
-```
+> Optional macOS-only fallback: the same crop-then-resize can be done with `sips --cropToHeightWidth` followed by `sips -z`. Only reach for it if Pillow is unavailable — resize.py is the supported path.
 
-Both options crop to the correct aspect ratio (top-center aligned, sides trimmed equally, top edge preserved) and resize to exact pixel dimensions. The resized image is saved as a separate file with `-resized` appended.
+**Step 5: Review all 3 variants with the user**
 
-Target dimensions per display size — adjust `TARGET_W` and `TARGET_H`:
-- iPhone 6.5": `TARGET_W=1242 TARGET_H=2688`
-- iPhone 6.7" (default): `TARGET_W=1290 TARGET_H=2796`
-- iPhone 6.9": `TARGET_W=1320 TARGET_H=2868`
-
-**Step 5: Review all 3 versions with the user**
-
-Present all 3 **resized** versions (the `-resized.jpg` files) to the user using the Read tool. Never show the raw Nano Banana output — always show the post-processed versions.
+Present all 3 **resized** variants (the `-resized.jpg` files) to the user using the Read tool. Never show the raw model output — always show the post-processed versions.
 
 Label them clearly as **Version 1**, **Version 2**, and **Version 3** and ask the user to pick their favourite or request changes.
 
 **Step 6: Iterate if needed**
 
-If the user wants changes, use `edit_image` with **three images** as input:
-1. The **scaffold** (`scaffold.png`) — anchors the layout (text position, device placement, screenshot)
-2. The **style template** (the first approved screenshot from `screenshots/final/01-*.jpg`) — defines the device frame rendering and overall visual style that must be consistent across the entire set
-3. The **approved design** (the version the user liked best for this specific screenshot) — anchors the creative direction and breakout element approach
+If the user wants changes, call `generate_ai.py` again with **three images** as input, in this order:
+
+```
+--input screenshots/[LOCALE]/0N-[benefit-slug]/scaffold.png \
+--input screenshots/final/[LOCALE]/01-[first-benefit-slug].jpg \
+--input screenshots/[LOCALE]/0N-[benefit-slug]/v2.png
+```
+
+1. The **scaffold** — anchors the layout (text position, device placement, screenshot)
+2. The **style template** (this locale's first approved screenshot) — defines the device frame rendering and overall visual style that must be consistent across the locale's set
+3. The **approved design** (the variant the user liked best for this specific screenshot) — anchors the creative direction and breakout element approach
 
 The prompt should reference all three:
 ```
@@ -470,22 +617,22 @@ Generate a new version that keeps the layout from the scaffold, the device frame
 [USER'S REQUESTED CHANGES]
 ```
 
-This prevents drift (scaffold keeps layout locked), maintains set-wide consistency (style template keeps device frame and visual treatment identical), and preserves the creative direction the user already approved.
+This prevents drift (scaffold keeps layout locked), maintains locale-set consistency (style template keeps device frame and visual treatment identical), and preserves the creative direction the user already approved.
 
-When iterating, generate **3 versions in parallel** again (3 parallel `edit_image` calls in a single message). Then **immediately run the Step 3 crop/resize (Option A or B) on all 3 in a single Bash call** before showing the user.
+When iterating, generate **3 variants** again (`--n 3`), writing them to a fresh index so nothing is overwritten — e.g. `--start-index 4` produces `v4.png`, `v5.png`, `v6.png`. Then **immediately run the Step 4 crop/resize on all 3 in a single Bash call** before showing the user.
 
 Repeat until the user is happy.
 
-**Step 7: Copy approved version to `final/`**
+**Step 7: Copy approved version to `final/[LOCALE]/`**
 
-Once the user picks a winner, copy the resized version to `screenshots/final/`:
+Once the user picks a winner, copy the resized version to this locale's final folder:
 
 ```bash
-mkdir -p screenshots/final
-cp "screenshots/01-[benefit-slug]/v2-resized.jpg" "screenshots/final/01-[benefit-slug].jpg"
+mkdir -p screenshots/final/[LOCALE]
+cp "screenshots/[LOCALE]/01-[benefit-slug]/v2-resized.jpg" "screenshots/final/[LOCALE]/01-[benefit-slug].jpg"
 ```
 
-This keeps `final/` clean — only approved, App Store-ready screenshots, one per benefit, numbered in order. Then move to the next benefit.
+This keeps `final/[LOCALE]/` clean — only approved, App Store-ready screenshots, one per benefit, numbered in order, matching exactly one App Store Connect locale slot. Then move to the next benefit. When every benefit in the locale is approved, move to the next locale and repeat from Step 1.
 
 ### Determine Brand Colour (Automatic)
 
@@ -507,63 +654,78 @@ The brand colour is saved to memory in Step 0 of the generation process, before 
 
 ### Output
 
-Save generated screenshots to a `screenshots/` directory in the project root, organised by benefit subfolder:
+Save generated screenshots to a `screenshots/` directory in the project root, organised by **locale** then **benefit**:
 
 ```
 screenshots/
-  01-track-card-prices/       ← working versions for benefit 1
-    scaffold.png              ← deterministic compose.py output (text + frame + screenshot)
-    v1.jpg                    ← Nano Banana enhanced version 1
-    v1-resized.jpg            ← cropped/resized to App Store dimensions
-    v2.jpg
-    v2-resized.jpg
-    v3.jpg
-    v3-resized.jpg
-  02-search-any-card/         ← working versions for benefit 2
-    scaffold.png
-    v1.jpg
-    ...
-  final/                      ← approved screenshots, ready to upload
-    01-track-card-prices.jpg
-    02-search-any-card.jpg
+  en-US/                             ← working files for the base locale
+    01-track-card-prices/
+      scaffold.png                   ← deterministic compose.py output (text + frame + screenshot)
+      prompt.txt                     ← the enhancement prompt used
+      v1.png                         ← AI-enhanced variant 1 (9:16, intermediate)
+      v1-resized.jpg                 ← cropped/resized to exact App Store dimensions
+      v2.png
+      v2-resized.jpg
+      v3.png
+      v3-resized.jpg
+    02-search-any-card/
+      ...
+  es-ES/                             ← same structure, Spanish headlines
+    01-track-card-prices/
+      ...
+  final/                             ← approved screenshots, ready to upload
+    en-US/
+      01-track-card-prices.jpg
+      02-search-any-card.jpg
+    es-ES/
+      01-track-card-prices.jpg
+      02-search-any-card.jpg
+  showcase-en-US.png                 ← one preview per locale
+  showcase-es-ES.png
 ```
 
-The `final/` folder is the only one the user needs to care about — it contains one approved, App Store-ready screenshot per benefit, numbered in order. The benefit subfolders contain all working versions and can be ignored or deleted after the set is complete.
+Intermediates are PNG (the model's native output); everything in `final/` is `.jpg`, which is what gets uploaded.
 
-Also tell the user exactly which App Store Connect display size slot each screenshot fits into.
+The `final/[LOCALE]/` folders are the only ones the user needs to care about — each holds one approved, App Store-ready screenshot per benefit, numbered in order, and maps 1:1 to an App Store Connect locale slot. The per-locale working folders can be ignored or deleted once the set is complete.
+
+Also tell the user exactly which App Store Connect display size slot AND locale each screenshot belongs to.
 
 ### Save to Memory
 
-After each screenshot is generated (or after the full set is complete), save generation state to the Claude Code memory system. Create or update a memory file (e.g., `aso_generated_screenshots.md`) with:
+After each screenshot is generated (or after a locale's set is complete), save generation state to the Claude Code memory system. Create or update a memory file (e.g., `aso_generated_screenshots.md`) with:
 
 - **Brand colour**: name + hex code
-- **Target display size**: e.g., iPhone 6.7" (1290x2796)
-- **For each generated screenshot**:
-  - Benefit headline (ACTION VERB + DESCRIPTOR)
-  - Benefit subfolder path (e.g., `screenshots/01-track-card-prices/`)
-  - Which version the user chose (v1, v2, or v3)
-  - Final file path (e.g., `screenshots/final/01-track-card-prices.jpg`)
+- **Target display size**: e.g., iPhone 6.7" (1290x2796) — the same for every locale
+- **Model used**: e.g. `openai/gpt-image-2` at `high` quality, plus the running cost so far
+- **For each generated screenshot, keyed by `(locale, benefit)`**:
+  - Locale code (e.g. `es-ES`) and whether it is the base locale
+  - Benefit headline as rendered in that locale (translated VERB + DESCRIPTOR)
+  - The source English headline, so the cross-locale mapping is obvious
+  - Benefit subfolder path (e.g., `screenshots/es-ES/01-track-card-prices/`)
+  - Which variant the user chose (v1, v2, …)
+  - Final file path (e.g., `screenshots/final/es-ES/01-track-card-prices.jpg`)
   - Simulator screenshot used (file path)
+  - Font actually used for that locale, if it was substituted or set via `ASO_FONT`
   - Breakout elements described in the prompt
   - Status: generated / approved / needs-redo
   - Any user feedback or change requests noted
 
-Update this memory **incrementally** — after each screenshot is approved, add it. Don't wait until the end. This way if the conversation is interrupted mid-set, the user can resume from the last completed screenshot.
+Update this memory **incrementally** — after each screenshot is approved, add it. Don't wait until the end. This way if the conversation is interrupted mid-locale, the user can resume from the last completed screenshot in the active locale.
 
 ### Showcase Image
 
-Once ALL screenshots in the set are approved and saved to `final/`, generate a showcase image that displays up to 3 of the final screenshots side-by-side with a GitHub link. Use the showcase.py script in the skill directory:
+Once ALL screenshots in a locale's set are approved and saved to `final/[LOCALE]/`, generate a showcase image for that locale that displays up to 3 of the final screenshots side-by-side with a GitHub link. Use the showcase.py script in the skill directory:
 
 ```bash
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots"
 
 python3 "$SKILL_DIR/showcase.py" \
-  --screenshots screenshots/final/01-*.jpg screenshots/final/02-*.jpg screenshots/final/03-*.jpg \
+  --screenshots screenshots/final/[LOCALE]/01-*.jpg screenshots/final/[LOCALE]/02-*.jpg screenshots/final/[LOCALE]/03-*.jpg \
   --github "github.com/adamlyttleapps" \
-  --output screenshots/showcase.png
+  --output screenshots/showcase-[LOCALE].png
 ```
 
-Show the showcase image to the user using the Read tool. This is a shareable preview of the full screenshot set.
+Run it once per completed locale. Show each showcase image to the user using the Read tool — it's a shareable preview of that locale's screenshot set.
 
 ---
 
