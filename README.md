@@ -12,6 +12,12 @@ A Claude Code skill that generates high-converting App Store screenshots for you
 
 Progress is saved to Claude Code's memory system after each phase, so you can resume across conversations without starting over.
 
+### Built on a conversion playbook, not on taste
+
+The skill carries a **Conversion Design Playbook** distilled from a visual analysis of 8 high-converting App Store screenshot sets across different categories. It shapes the whole workflow, not just the wording: the set is structured as HERO → FEATURE (in the order a real user walks the app) → SOCIAL/OUTCOME; benefits are pushed toward quantified claims; every slide gets exactly one accented word, exactly one element broken out of the device frame, a zoom to the moment that matters and a swipe cue pulling the eye to the next slide; and the finished set has to survive a thumbnail test at ~150px wide.
+
+It also asks which social proof you genuinely have — rating and review count, downloads, press, awards, a defensible niche claim — and **never invents any of it**. Whatever you don't have is simply left off the slide.
+
 ---
 
 ## Installation
