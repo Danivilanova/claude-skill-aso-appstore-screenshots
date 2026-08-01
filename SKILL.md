@@ -10,6 +10,120 @@ This is a multi-phase process. Follow each phase in order — but ALWAYS check m
 
 Two reference sections sit at the end of this file: the **CONVERSION DESIGN PLAYBOOK** (what high-converting sets actually do, distilled from 8 real reference sets — you are pointed at it from Benefit Discovery, Screenshot Pairing and Generation) and **KEY PRINCIPLES**. Read the playbook before drafting benefits or writing any generation prompt.
 
+**You run this skill as an orchestrator.** The section immediately below defines how you split the work between yourself and subagents. Read it once now; then start with RECALL, which is always your first action.
+
+---
+
+## ORCHESTRATION (how you run this skill)
+
+This skill involves a lot of bounded, repetitive work — searching a codebase, running the same script over N slides × M locales, translating strings, checking generated images against a checklist — interleaved with judgement that must stay with you. Push the bounded work to subagents on the cheapest model that can do it, and keep the judgement.
+
+Everything here uses the **generic** Claude Code agent mechanism. It requires no custom agent definitions, no project configuration and no particular setup: clone this skill and it works.
+
+### What you never delegate
+
+You are the orchestrator. These stay with you, always:
+
+- **The conversation with the user** — every question, every proposal, every confirmation. Subagents never talk to the user.
+- **Choosing and approving the benefits**, their wording, and the set structure.
+- **All design decisions** — brand colour, accent technique, background system, slide roles, which breakout to use.
+- **Writing the image prompts** and the exact commands subagents run.
+- **Synthesis** — reconciling what subagents report, deciding what it means, and what happens next.
+- **Final approval** of anything shown to the user or written to `final/`.
+
+A subagent that starts making these decisions is a mis-delegation: re-brief it, or do it yourself.
+
+### How to spawn a subagent (portable mechanics)
+
+Use the **Agent tool** (called `Task` in some Claude Code versions) with:
+
+- `subagent_type: "general-purpose"` — the always-available generic agent. For read-only research you may use `"Explore"` instead **if it exists in this environment**; if you are not sure it exists, use `"general-purpose"`.
+- `model` — set it explicitly on every call: `"haiku"`, `"sonnet"` or `"opus"`. Never leave it to the default; the routing table below is the whole point.
+- `prompt` — a complete, one-shot brief. The subagent cannot ask you a follow-up question mid-task, and it cannot ask the user anything at all.
+
+Every brief contains these five things:
+
+1. **Goal** — one sentence: what to produce.
+2. **Context it needs** — absolute paths, the exact commands to run, the strings to work on. Assume it knows nothing about this conversation.
+3. **Constraints** — what it must not do (touch other files, change wording, invent data, call a paid API with its own parameters).
+4. **Done-criteria** — how it knows it finished.
+5. **Response format** — the exact shape of the answer you want back, because that answer is the only thing you get.
+
+**A subagent's final message is its deliverable.** There is no interim channel: it cannot ping you halfway, and you cannot see its intermediate work. Ask for everything you need in that one message, and tell it to keep the message self-contained (no "as discussed above", no file dumps).
+
+Tell every subagent, in the brief, that it must **not spawn further subagents** — it does the work itself — and that **being blocked is a valid, useful outcome**: "blocked because X, here is exactly what I found" is a success; a guessed answer is not.
+
+**Parallel fan-out**: when two or more briefs are independent (different research surfaces, different locales, different slides), issue them **in the same message** so they run concurrently. Only serialise when one brief genuinely needs another's output.
+
+### Fallback — no Agent tool available
+
+If this environment has no Agent tool, **the skill still runs, unchanged in outcome**. Do every delegated step yourself, inline, in exactly the same order:
+
+- The three research briefs become three searches you run yourself.
+- The batch runs become the same commands executed directly.
+- The translation and back-translation still happen as two separate steps — write the translations, then re-read *only* the translated strings and back-translate them without looking at the English source.
+- The design review still happens: read the generated images and walk the same checklist.
+
+Never skip a step because you cannot delegate it, and never tell the user the skill is unavailable. Delegation is an optimisation, not a dependency.
+
+### Model routing
+
+| Model | Use for | Never for |
+|-------|---------|-----------|
+| **haiku** | Purely mechanical work with zero judgement: running batches of `compose.py --strict`, `resize.py` and `showcase.py` over N slides × locales with commands you already wrote, creating and organising directories, `--dry-run` validation, collecting file paths and reporting exit codes. | Anything where a decision has to be made, or where an error needs interpreting. |
+| **sonnet** | Bounded standard work: read-only codebase sweeps during Benefit Discovery, per-locale translation and back-translation, running `generate_ai.py` batches where API errors may need sensible handling and retrying. | Design judgement, approving output, choosing wording that ships. |
+| **opus** | Judgement passes: independent design review of generated variants against the playbook invariants, back-translation verification, and any "is this good enough to ship?" assessment you want a second opinion on. | Bulk mechanical work — it is the expensive model; do not use it to run scripts. |
+
+### Delegation points by phase
+
+| Phase | Delegate | Model | Why this model |
+|-------|----------|-------|----------------|
+| Benefit Discovery | 2–3 parallel read-only research briefs on disjoint surfaces | sonnet | Needs comprehension of unfamiliar code, but returns facts, not decisions |
+| Localization | Translation per locale | sonnet | Language work, bounded, no design authority |
+| Localization | Back-translation, in a **fresh** agent | sonnet | Must be independent of the translator; see below |
+| Generation | Scaffold batches (`compose.py --strict`) | haiku | Commands are fully written by you; nothing to decide |
+| Generation | Enhancement batches (`generate_ai.py`) | sonnet | API errors, partial failures and retries need light judgement |
+| Generation | Resize batches (`resize.py`) and file organisation | haiku | Purely mechanical |
+| Review | Independent design review of each batch | opus | This is the judgement that protects the whole set |
+| Showcase | `showcase.py` runs per locale | haiku | One command per locale |
+
+**Benefit Discovery — parallel research.** Fan out 2–3 read-only briefs on **disjoint** surfaces, in one message so they run at once:
+
+- **(a) Features and UX flows** — what the user can actually do, the main screens, the onboarding path, what the app leads with.
+- **(b) Quantifiable angles and proof hooks** — real numbers in the codebase: dataset/seed counts, supported formats, languages, integrations, limits, model counts, measured speed-ups. Facts with `file:line`, never estimates.
+- **(c) Audience and positioning** — who it is for, the niche, the tone of the copy, competitors named anywhere in the repo or docs.
+
+Each brief is read-only (the agent must not modify anything), must cite `file:path:line` for every finding, and must say explicitly what it could not find. You synthesise the three reports with the user.
+
+**Localization — why the back-translator must be fresh.** Give the back-translation brief **only the translated string** and the target locale. Never include the original English, and never reuse the agent that produced the translation. An agent that has seen the source will reproduce its meaning from memory and report a clean round-trip even when the translation drifted — which defeats the entire purpose of the check. A back-translation is only evidence if it was produced blind.
+
+**Generation — the hard rule on spending.** `generate_ai.py` costs real money on every call.
+
+- A subagent runs **only** the exact command string you wrote, with the prompt file you wrote. It never composes its own prompt, never changes `--model`, `--quality`, `--n` or `--aspect-ratio`, and never re-runs a failed call "to see if it works this time" unless your brief said how many retries are allowed.
+- If `compose.py --strict` fails, the runner **returns the error to you verbatim and stops that item**. It must never shorten a headline, drop a word, remove `--strict` or otherwise "fix" the input — headline wording is yours and the user's, and a silently shortened headline would ship.
+- The runner reports, per item: the command, the exit code, the output paths that now exist, and the cost line printed by the script.
+
+**Review — independent design pass.** After each batch of variants is generated and resized, hand a fresh **opus** agent the resized image paths and have it check each one against the playbook invariants:
+
+- Headline wording intact, correct language, inside the centre 75% safe area
+- Exactly **one** accented word, using the set's technique
+- Exactly **one** breakout element
+- Background matches the set's system
+- Swipe cue present (absent only on the last slide)
+- **No invented proof** — no rating, star row, download count, award ribbon or press logo that was not in the prompt
+- For slide 1: the thumbnail test — still legible and still persuasive at ~150px wide
+
+It returns **PASS** or **REGENERATE** per image, with one line of reason for every REGENERATE, and nothing else — no rewriting, no prompt suggestions unless asked. You and the user decide what actually happens; a review agent never regenerates anything itself.
+
+### Rules that apply to every delegation
+
+- **One-shot briefs.** No conversation with a subagent. If a brief needs an answer you do not have yet, you are delegating too early.
+- **Parallelise only what is independent.** Locales are independent of each other; slides within a locale are independent once their prompts exist; the three research surfaces are independent. A locale's second screenshot is *not* independent of its first (it needs the approved style template) — serialise that.
+- **Findings are inputs, not truths.** A research agent's report is unverified evidence. Before a decisive claim reaches a headline — a number, a limit, a "supports X languages" — check it yourself at the cited path. A wrong number in a screenshot is worse than no number.
+- **Verify the work landed.** A batch runner can report success and still have written nothing. Spot-check that the expected files exist before moving on.
+- **Re-brief rather than argue.** If a subagent returns something off-target, the fix is a better brief, not a follow-up message. After two failed attempts at the same brief, do that step yourself.
+- **Cost awareness.** Subagents are not free — each one burns tokens, and opus burns the most. Use haiku wherever there is no judgement, keep briefs tight, and do not delegate a task smaller than the brief needed to describe it. Delegation should save you context, time or money; if it saves none of the three, just do it inline.
+
 ---
 
 ## RECALL (Always Do This First)
