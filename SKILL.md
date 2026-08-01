@@ -172,19 +172,33 @@ This phase sets the foundation for everything. The goal is to identify the 3-5 a
 
 ### Step 1: Analyze the Codebase
 
-Explore the project codebase thoroughly. Look at:
+**Delegate this as parallel read-only research** (see ORCHESTRATION → *Benefit Discovery — parallel research*): 2–3 **sonnet** briefs on disjoint surfaces, issued in a single message so they run concurrently. Do not read the whole codebase yourself — synthesise their reports instead. Without an Agent tool, run the same three sweeps yourself, in this order.
+
+The three surfaces, and what each brief must come back with:
+
+**(a) Features and UX flows**
 - UI files, view controllers, screens, components — what can the user actually DO in this app?
+- Onboarding flows — what does the app highlight first?
 - Models and data structures — what domain does this app operate in?
 - Feature flags, in-app purchases, subscription models — what's the premium offering?
-- Onboarding flows — what does the app highlight first?
+
+**(b) Quantifiable angles and proof hooks** (feeds Step 2b)
+- Real counts: bundled datasets, seed files, supported formats, languages, integrations, models, exercises, templates
+- Limits and tiers, measured speed-ups, anything a headline could quantify honestly
+- Every figure with its `file:line`, and an explicit note when a number could not be found — **no estimates**
+
+**(c) Audience and positioning**
 - App name, bundle ID, any marketing copy in the code
 - README, App Store description files, metadata if present
+- Tone of the user-facing copy, the niche it addresses, competitors named anywhere in the repo or docs
 
-From this analysis, build a mental model of:
+From the three reports, build a mental model of:
 - What the app does (core functionality)
 - Who it's for (target audience)
 - What makes it different (unique value)
 - What problems it solves
+
+Their findings are **inputs, not truths**. Any number or claim that will end up in a headline gets checked by you at the cited path before you propose it to the user.
 
 ### Step 2: Ask the User Clarifying Questions
 
@@ -203,9 +217,9 @@ Adapt your questions based on what you can and can't determine from the code. Do
 
 Two things separate a credible set from a generic one (playbook principles 2 and 3): **quantified claims** and **genuine social proof**. Both have to be collected here, before any headline is written.
 
-**Quantifiable angle per benefit.** Dig through the codebase for real figures you can stand behind: the number of items in a bundled dataset or seed file, supported formats, languages or integrations, a measured speed-up, free-tier limits, model counts, exercise counts. "500+ EXAM-LIKE QUESTIONS" outperforms "LOTS OF PRACTICE"; "x10 SPEED" outperforms "FASTER". Bring each number to the user for confirmation — the code may lag reality. If a benefit has no honest number, keep it qualitative rather than stretching one.
+**Quantifiable angle per benefit.** Research brief (b) from Step 1 already returned the figures with their `file:line`; here you turn them into angles. Real numbers you can stand behind: the number of items in a bundled dataset or seed file, supported formats, languages or integrations, a measured speed-up, free-tier limits, model counts, exercise counts. "500+ EXAM-LIKE QUESTIONS" outperforms "LOTS OF PRACTICE"; "x10 SPEED" outperforms "FASTER". **Verify each figure yourself at the cited path** before showing it to the user — a research agent's report is evidence, not fact — then bring it to the user for confirmation, since the code may lag reality. If a benefit has no honest number, keep it qualitative rather than stretching one.
 
-**Social proof, asked for explicitly.** Ask the user, in one go:
+**Social proof, asked for explicitly.** This one is yours: subagents never talk to the user. Ask, in one go:
 
 ```
 Slide 1 works far better with real proof on it. Which of these do you actually have?
@@ -362,6 +376,10 @@ It prints the resolved font, the detected script, whether a substitution happene
 
 ### Step 4: Translate the headlines
 
+**Delegate one brief per locale, in parallel** (**sonnet** — see ORCHESTRATION). Locales are independent of each other, so issue every locale's brief in the same message. Each brief carries: the target locale code, the full list of English verb + descriptor pairs, and the constraints below verbatim. Ask for the answer as a plain table of `benefit → VERB | DESCRIPTOR`, and nothing else.
+
+Tell each translator explicitly that it must **not** invent, expand or "improve" a benefit, and that if a benefit cannot be said briefly in that language it should return its shortest honest option **plus** a note saying so — you would rather re-word the benefit with the user than ship a headline `compose.py --strict` will reject.
+
 For every confirmed benefit, translate **both the action verb and the descriptor** into each non-base locale. Constraints:
 
 - **Stay short.** compose.py auto-shrinks the verb (256px → 150px) and the descriptor (124px → 80px) and wraps both inside the centre 75% safe area — but a headline that wraps to three lines loses its punch, and one that still doesn't fit at the minimum size makes `compose.py --strict` fail outright rather than emit a clipped scaffold. German, Finnish, Hungarian and Russian in particular run long (a 10-character Cyrillic verb like ОТСЛЕЖИВАЙ will not fit); pick the concise option. Target a one-word verb and a three-to-four-word descriptor.
@@ -372,7 +390,11 @@ For every confirmed benefit, translate **both the action verb and the descriptor
 
 ### Step 5: Back-translate and confirm
 
-For each non-base locale, independently back-translate the verb + descriptor into English and show the user a round-trip table:
+**Use a fresh subagent per locale (sonnet), and give it ONLY the translated strings** — never the English source, and never the agent that produced the translation. This is the whole point of the check: an agent that has already seen "TRACK CARD PRICES" recognises its own output and reports a perfect round-trip even when the translation drifted, so the review becomes theatre. A back-translation is evidence only when it was produced blind.
+
+Keep that brief minimal: "Here are N short headlines in [locale]. Translate each into natural English. Return only `original → English`." Nothing about the app, the benefits, or what the strings are for.
+
+Then line their English up against the original English yourself and show the user the round-trip table:
 
 ```
 es-ES:
@@ -384,7 +406,7 @@ ja:
   SEARCH ANY CARD   → 全カードを検索   → "SEARCH ALL CARDS" ⚠ (drift: "all" vs "any")
 ```
 
-Flag every line where the back-translation drifts, and offer alternatives. DO NOT generate anything until the user explicitly approves each locale's translations. They can approve as-is, edit any line, or ask for alternatives.
+Flag every line where the back-translation drifts, and offer alternatives. When the drift is subtle or the stakes are high (a flagship market, or a claim carrying a number), get a second opinion from an **opus** agent: give it the original English, the translation and the blind back-translation, and ask only for "PRESERVED" or "DRIFT + one line why". DO NOT generate anything until the user explicitly approves each locale's translations. They can approve as-is, edit any line, or ask for alternatives.
 
 ### Step 6: Save to memory
 
@@ -635,6 +657,10 @@ Then apply what the LOCALIZATION phase recorded for this locale:
 
 The compose.py script lives in the skill directory. Run it to create the deterministic base screenshots for the active locale, using that locale's translated verb and descriptor from `aso_localizations.md`.
 
+**Delegate the batch to a haiku runner** (see ORCHESTRATION): you write the exact command below with every placeholder filled in, and the runner executes it and reports back. There is nothing to decide here, which is precisely why it goes to the cheapest model. Its brief must say: run this command verbatim, do not edit it, report the exit code, the paths that now exist, and any stderr output in full.
+
+**If `compose.py --strict` fails, the runner stops that item and returns the error to you — verbatim.** It must never shorten the headline, drop a word, swap the descriptor or remove `--strict`. Headline wording belongs to you and the user: a strict failure means going back to the user (or to that locale's translation) with the exact reason the script printed, not quietly shipping a different headline.
+
 **IMPORTANT — Batch all scaffolds for the locale into a single Bash call** to minimize permission prompts. Chain the commands with `&&` so the user only needs to approve once:
 
 ```bash
@@ -690,6 +716,17 @@ python3 "$SKILL_DIR/generate_ai.py" \
 ```
 
 This writes `v1.png`, `v2.png`, `v3.png` into the benefit folder and prints the run's cost.
+
+**Delegating the enhancement batch** (**sonnet** — API errors and partial failures need a little judgement; see ORCHESTRATION). The prompt is yours: you write `prompt.txt`, you write the command. The runner's job is to execute it and report.
+
+Hard rules for that brief, because every call costs real money:
+
+- Run **only** the exact command given. Never compose or edit a prompt, never change `--model`, `--quality`, `--n`, `--aspect-ratio` or the `--input` list.
+- **Retries are capped by the brief** — state the number explicitly (one retry on a 5xx or a timeout is reasonable; zero on a 4xx, which means the request itself is wrong). Never retry "to see if it works this time".
+- Report per item: the command, the exit code, the saved paths, the cost line the script printed, and the full error text on failure.
+- On any failure that is not a plain transient, stop the batch and return — do not keep spending down the list.
+
+Parallelise across **slides** and **locales** (independent), never across the first two screenshots of a locale (the second needs the first's approved style template).
 
 Notes on the flags:
 - `--input` is repeatable and order matters: the scaffold ALWAYS comes first, style references after it.
@@ -823,7 +860,7 @@ Regenerate as well when any of the playbook invariants breaks, because these com
 
 ⚠️ **You MUST run this immediately after `generate_ai.py` returns. Do NOT show the user any image before running this. The raw model output is 9:16 — always the wrong dimensions for App Store Connect.**
 
-**CRITICAL — Use exactly ONE Bash tool call for all 3 crop/resize operations.** Do NOT make 3 separate Bash calls. Do NOT use parallel Bash calls. Use the single command below so the user only sees one permission prompt.
+**CRITICAL — Use exactly ONE Bash tool call for all 3 crop/resize operations.** Do NOT make 3 separate Bash calls. Do NOT use parallel Bash calls. Use the single command below so the user only sees one permission prompt. This is another pure **haiku** batch: hand the runner the finished command and ask for exit code, output paths and the dimensions the script printed.
 
 ```bash
 SKILL_DIR="$HOME/.claude/skills/aso-appstore-screenshots" && \
@@ -847,7 +884,9 @@ Target dimensions per display size — adjust `--width` and `--height`:
 
 Present all 3 **resized** variants (the `-resized.jpg` files) to the user using the Read tool. Never show the raw model output — always show the post-processed versions.
 
-Before showing them, check each variant yourself against the playbook invariants and say which ones fail — the user should not have to spot these:
+**Get an independent design review first** (**opus** — see ORCHESTRATION → *Review*). Hand a fresh agent the paths of the resized variants and the set's rules (accent technique, background system, slide role, the proof items that were actually in the prompt) and ask for **PASS / REGENERATE per image with one line of reason**, nothing else. Fresh eyes catch what you stop seeing after writing the prompt, and the reviewer never regenerates or rewrites anything — you and the user decide.
+
+Whether the check is delegated or done inline, these are the invariants, and you say which ones fail before the user has to spot them:
 
 - Headline wording intact, in the right language, inside the safe area
 - **Exactly one** accented word, using the set's technique
@@ -985,6 +1024,8 @@ Update this memory **incrementally** — after each screenshot is approved, add 
 
 Once every screenshot in a locale is in `final/[LOCALE]/`, review the set **as a set** before generating the showcase or telling the user it's finished. This is a visual judgement call, not a script.
 
+This whole review is worth delegating to a fresh **opus** agent (see ORCHESTRATION): give it the final paths in order, the set's rules, and ask for a per-slide verdict plus one paragraph on the set as a whole. A reviewer that never saw the prompts judges the set the way a stranger scrolling the App Store will. You still own what happens next.
+
 **1. The thumbnail test.** Look at slide 1 the way the App Store shows it in search results: tiny. Read it with the Read tool and assess it at roughly **150px wide** — squint, or scale it down mentally to a thumbnail on a phone-sized result row. It passes only if:
 
 - The headline is still legible — not "you can tell text is there", actually readable
@@ -1017,7 +1058,7 @@ python3 "$SKILL_DIR/showcase.py" \
   --output screenshots/showcase-[LOCALE].png
 ```
 
-Run it once per completed locale. Show each showcase image to the user using the Read tool — it's a shareable preview of that locale's screenshot set.
+Run it once per completed locale — a one-command **haiku** batch when several locales are done at once. Show each showcase image to the user using the Read tool — it's a shareable preview of that locale's screenshot set.
 
 ---
 
