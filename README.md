@@ -12,6 +12,12 @@ A Claude Code skill that generates high-converting App Store screenshots for you
 
 Progress is saved to Claude Code's memory system after each phase, so you can resume across conversations without starting over.
 
+### Runs itself as an orchestrator
+
+The model running the skill acts as an orchestrator: it keeps the conversation, the benefit decisions, the design choices and the image prompts, and pushes the bounded work to subagents on the cheapest model that can do it — haiku for mechanical batches (scaffolding, resizing, showcases), sonnet for codebase research and translation, opus for independent design review of the generated slides. Codebase research and per-locale work run in parallel.
+
+This is defined entirely inside `SKILL.md` using the generic Claude Code agent mechanism — no custom agent definitions and no configuration to install. If the environment has no agent tool at all, the skill runs every step inline in the same order and produces the same result.
+
 ### Built on a conversion playbook, not on taste
 
 The skill carries a **Conversion Design Playbook** distilled from a visual analysis of 8 high-converting App Store screenshot sets across different categories. It shapes the whole workflow, not just the wording: the set is structured as HERO → FEATURE (in the order a real user walks the app) → SOCIAL/OUTCOME; benefits are pushed toward quantified claims; every slide gets exactly one accented word, exactly one element broken out of the device frame, a zoom to the moment that matters and a swipe cue pulling the eye to the next slide; and the finished set has to survive a thumbnail test at ~150px wide.
